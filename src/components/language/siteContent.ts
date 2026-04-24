@@ -225,6 +225,11 @@ type LocalizedPageCopy = {
     live: LocalizedString;
     titleMain: LocalizedString;
     titleAccent: LocalizedString;
+    clickMap: LocalizedString;
+    mapHint: LocalizedString;
+    selectedCountry: LocalizedString;
+    athletes: LocalizedString;
+    openProfile: LocalizedString;
     countSingular: LocalizedString;
     countPlural: LocalizedString;
     disciplines: LocalizedString;
@@ -451,6 +456,11 @@ export const PAGE_COPY: LocalizedPageCopy = {
     live: { fr: "EN DIRECT", en: "LIVE" },
     titleMain: { fr: "55 nations,", en: "55 nations," },
     titleAccent: { fr: "une seule vibration.", en: "one shared pulse." },
+    clickMap: { fr: "Carte interactive", en: "Interactive map" },
+    mapHint: { fr: "Clique sur un pays pour voir ses athlètes.", en: "Click a country to see its athletes." },
+    selectedCountry: { fr: "Pays sélectionné", en: "Selected country" },
+    athletes: { fr: "Athlètes du pays", en: "Athletes from this country" },
+    openProfile: { fr: "Ouvrir la fiche", en: "Open profile" },
     countSingular: { fr: "athlète", en: "athlete" },
     countPlural: { fr: "athlètes", en: "athletes" },
     disciplines: { fr: "Disciplines", en: "Events" },
