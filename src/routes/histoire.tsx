@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Globe2, Sparkles } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { PageShell } from "@/components/PageShell";
@@ -30,6 +30,8 @@ function parseYear(year: string | undefined) {
 
 function HistoirePage() {
   const railRef = useRef<HTMLDivElement>(null);
+  const matchRoute = useMatchRoute();
+  const detailMatch = matchRoute({ to: "/histoire/$id" });
 
   const stats = useMemo(() => {
     const firstYear = parseYear(JOJ_TIMELINE[0]?.year);
@@ -53,6 +55,10 @@ function HistoirePage() {
       behavior: "smooth",
     });
   };
+
+  if (detailMatch) {
+    return <Outlet />;
+  }
 
   return (
     <PageShell>
