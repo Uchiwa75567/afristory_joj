@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Headphones, Globe, Smartphone, Building2, Play, Sparkles } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { ATHLETES, PODCASTS, ROOMS } from "@/data/mock";
-import heroImg from "@/assets/hero-athlete.jpg";
 import heroVideo from "@/assets/videos/video.mp4";
 
 export const Route = createFileRoute("/")({
@@ -45,13 +44,12 @@ function Index() {
       <section className="relative min-h-[92vh] flex items-end overflow-hidden">
         <div className="absolute inset-0">
           <video
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className="absolute inset-0 h-full w-full object-cover object-center bg-black"
             autoPlay
             loop
             muted
             playsInline
-            preload="metadata"
-            poster={heroImg}
+            preload="auto"
             aria-hidden="true"
           >
             <source src={heroVideo} type="video/mp4" />
