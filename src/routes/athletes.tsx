@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Search, ArrowRight, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
@@ -22,6 +22,8 @@ export const Route = createFileRoute("/athletes")({
 const FILTERS = ["Tous", "Hommes", "Femmes"] as const;
 
 function AthletesPage() {
+  const matchRoute = useMatchRoute();
+  const detailMatch = matchRoute({ to: "/athletes/$id" });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("Tous");
   const [country, setCountry] = useState<string>("Tous les pays");
@@ -44,6 +46,10 @@ function AthletesPage() {
       return true;
     });
   }, [query, filter, country]);
+
+  if (detailMatch) {
+    return <Outlet />;
+  }
 
   return (
     <PageShell>
@@ -124,7 +130,7 @@ function AthletesPage() {
                 to="/athletes/$id"
                 params={{ id: a.id }}
                 className="photo-card group block h-full cursor-pointer animate-fade-in-up"
-                title={`Ouvrir le dossier de ${a.name}`}
+                title={`Ouvrir le détail de ${a.name}`}
                 style={{ animationDelay: `${Math.min(i, 8) * 0.04}s` }}
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -160,7 +166,7 @@ function AthletesPage() {
                       )}
                     </div>
                     <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-cream/80 opacity-0 transition-opacity group-hover:opacity-100">
-                      Ouvrir le dossier <ArrowRight className="h-3.5 w-3.5" />
+                      Ouvrir le détail <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                   </div>
                 </div>

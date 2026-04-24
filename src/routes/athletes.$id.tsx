@@ -13,7 +13,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageShell } from "@/components/PageShell";
-import { ATHLETES, PODCASTS, VIDEOS, type Athlete, type VideoItem } from "@/data/mock";
+import {
+  ATHLETES,
+  PODCASTS,
+  VIDEOS,
+  type Athlete,
+  type PodcastEpisode,
+  type VideoItem,
+} from "@/data/mock";
 
 type InterviewItem = {
   kind: "audio" | "video";
@@ -34,7 +41,7 @@ export const Route = createFileRoute("/athletes/$id")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.name} — AfriStory JOJ` },
+          { title: `Détail athlète - ${loaderData.name} — AfriStory JOJ` },
           { name: "description", content: loaderData.bio },
           { property: "og:title", content: `${loaderData.name} — ${loaderData.country}` },
           { property: "og:description", content: loaderData.bio },
@@ -79,7 +86,12 @@ function AthleteDetail() {
   const idx = ATHLETES.findIndex((a) => a.id === athlete.id);
   const prev = ATHLETES[(idx - 1 + ATHLETES.length) % ATHLETES.length];
   const next = ATHLETES[(idx + 1) % ATHLETES.length];
-  const podcast = athlete.podcastId ? PODCASTS.find((p) => p.id === athlete.podcastId) : undefined;
+  const audioInterviews = useMemo<PodcastEpisode[]>(() => {
+    const fromAthleteId = PODCASTS.filter((episode) => episode.athleteId === athlete.id);
+    const fallback = athlete.podcastId ? PODCASTS.filter((episode) => episode.id === athlete.podcastId) : [];
+    const interviews = fromAthleteId.length ? fromAthleteId : fallback;
+    return Array.from(new Map(interviews.map((episode) => [episode.id, episode])).values());
+  }, [athlete.id, athlete.podcastId]);
   const documentaryVideos = (athlete.documentaryVideoIds ?? [])
     .map((videoId) => VIDEOS.find((video) => video.id === videoId))
     .filter((video): video is VideoItem => Boolean(video));
@@ -89,19 +101,15 @@ function AthleteDetail() {
 
   const interviewItems = useMemo<InterviewItem[]>(
     () => [
-      ...(podcast
-        ? [
-            {
-              kind: "audio" as const,
-              id: podcast.id,
-              title: podcast.title,
-              subtitle: podcast.athleteName,
-              description: podcast.description,
-              meta: `${podcast.duration} · ${podcast.category}`,
-              image: podcast.cover,
-            },
-          ]
-        : []),
+      ...audioInterviews.map((podcast) => ({
+        kind: "audio" as const,
+        id: podcast.id,
+        title: podcast.title,
+        subtitle: podcast.athleteName,
+        description: podcast.description,
+        meta: `${podcast.duration} · ${podcast.category}`,
+        image: podcast.cover,
+      })),
       ...documentaryVideos.map((video) => ({
         kind: "video" as const,
         id: video.id,
@@ -112,7 +120,7 @@ function AthleteDetail() {
         image: video.image,
       })),
     ],
-    [documentaryVideos, podcast],
+    [audioInterviews, documentaryVideos],
   );
 
   const storyStartYear = athlete.story[0]?.year ?? "0000";
@@ -152,20 +160,27 @@ function AthleteDetail() {
               <div className="absolute bottom-0 left-0 right-0 p-5">
                 <div className="max-w-sm rounded-2xl border border-border bg-background/85 p-4 backdrop-blur-xl">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                    Portrait détaillé
+                    Détail athlète
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-text-secondary">{athlete.bio}</p>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
                   Histoire
                 </div>
                 <div className="mt-2 font-serif text-3xl text-text">{athlete.story.length}</div>
                 <div className="mt-1 text-sm text-text-secondary">chapitres chronologiques</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
+                  Période
+                </div>
+                <div className="mt-2 font-serif text-3xl text-text">{storyStartYear}</div>
+                <div className="mt-1 text-sm text-text-secondary">à {storyEndYear}</div>
               </div>
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
@@ -225,10 +240,10 @@ function AthleteDetail() {
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                {podcast && (
+                {audioInterviews[0] && (
                   <Link
                     to="/podcast/$id"
-                    params={{ id: podcast.id }}
+                    params={{ id: audioInterviews[0].id }}
                     className="inline-flex items-center gap-2 rounded-full bg-gradient-green px-5 py-3 text-sm font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)] transition-transform hover:scale-[1.02]"
                   >
                     <Headphones className="h-4 w-4" /> Écouter l'interview
@@ -542,7 +557,7 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="eyebrow mb-2 text-gold">Narration vocale</div>
+          <div className="eyebrow mb-2 text-gold">Portrait vocal</div>
           <h2 className="font-serif text-2xl text-on-dark">Écoute du récit</h2>
         </div>
         <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
@@ -551,7 +566,7 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
       </div>
 
       <p className="mt-4 text-sm leading-relaxed text-on-dark-muted">
-        Le navigateur lit le dossier de {athlete.name}. Le récit est découpé en phrases pour
+        Le navigateur lit le dossier de {athlete.name}. Le texte est découpé en phrases pour
         accompagner la page sans casser le rythme.
       </p>
 
