@@ -1,34 +1,37 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Menu, X, Globe, ChevronDown, ArrowRight, LogOut } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, ArrowRight, LogOut, Lock } from "lucide-react";
 import { useState } from "react";
 import { BrandLogo } from "./BrandLogo";
 import { AuthDialog } from "./auth/AuthDialog";
 import { useAuth } from "./auth/AuthProvider";
+import { LANGUAGE_LABELS, LANGUAGE_ORDER, LANGUAGE_SHORT_LABELS, useLanguage } from "./language/LanguageProvider";
+import { COMMON_COPY } from "./language/siteContent";
 
 const NAV = [
-  { to: "/", label: "Accueil" },
-  { to: "/musee", label: "Le Musée" },
-  { to: "/athletes", label: "Athlètes" },
-  { to: "/podcast", label: "Podcast" },
-  { to: "/histoire", label: "Histoire" },
-  { to: "/live", label: "Live JOJ" },
+  { to: "/", key: "accueil" },
+  { to: "/musee", key: "musee" },
+  { to: "/athletes", key: "athletes" },
+  { to: "/podcast", key: "podcast" },
+  { to: "/histoire", key: "histoire" },
+  { to: "/live", key: "live" },
 ] as const;
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState<"FR" | "EN" | "WO">("FR");
   const [langOpen, setLangOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const location = useLocation();
   const { hydrated, session, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const isWolofLocked = (value: string) => value === "WO";
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-white/30 bg-background/70 shadow-[0_12px_35px_-28px_rgba(13,31,18,0.28)] backdrop-blur-2xl">
-        <div className="container-museum h-[76px] flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-50 border-b border-border bg-background shadow-[0_12px_35px_-28px_rgba(13,31,18,0.18)]">
+        <div className="container-museum flex h-[76px] items-center justify-between gap-4">
           <BrandLogo size="sm" className="shrink-0" />
 
-          <nav className="hidden lg:flex items-center gap-1 rounded-full border border-white/35 bg-background/55 p-1.5 shadow-[0_18px_40px_-28px_rgba(13,31,18,0.18)] backdrop-blur-xl">
+          <nav className="hidden items-center gap-1 rounded-full border border-border bg-bg-soft p-1.5 shadow-[0_18px_40px_-28px_rgba(13,31,18,0.14)] lg:flex">
             {NAV.map((item) => {
               const active =
                 location.pathname === item.to ||
@@ -43,7 +46,7 @@ export function Header() {
                       : "text-text-secondary hover:text-text"
                   }`}
                 >
-                  {item.label}
+                  {COMMON_COPY.nav[item.key][language]}
                 </Link>
               );
             })}
@@ -52,31 +55,45 @@ export function Header() {
           <div className="flex items-center gap-2">
             <div className="relative hidden md:block">
               <button
+                type="button"
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 rounded-full border border-white/35 bg-background/60 px-3.5 py-2 text-xs text-text-secondary backdrop-blur-xl hover:border-green/50 hover:text-text transition-colors"
+                aria-haspopup="menu"
+                aria-expanded={langOpen}
+                aria-label={COMMON_COPY.header.chooseLanguage[language]}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-xs text-text-secondary transition-colors hover:border-green/50 hover:text-text"
               >
-                <Globe className="w-3.5 h-3.5" />
-                {lang}
+                <Globe className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1">
+                  {LANGUAGE_SHORT_LABELS[language]}
+                  {language === "WO" && <Lock className="h-3 w-3" aria-hidden="true" />}
+                </span>
                 <ChevronDown
-                  className={`w-3 h-3 transition-transform ${langOpen ? "rotate-180" : ""}`}
+                  className={`h-3 w-3 transition-transform ${langOpen ? "rotate-180" : ""}`}
                 />
               </button>
               {langOpen && (
-                <div className="absolute right-0 top-full mt-2 w-36 overflow-hidden rounded-2xl border border-white/30 bg-background/95 shadow-lg backdrop-blur-xl">
-                  {(["FR", "EN", "WO"] as const).map((l) => (
+                <div className="absolute right-0 top-full mt-2 w-36 overflow-hidden rounded-2xl border border-border bg-background shadow-lg">
+                  {LANGUAGE_ORDER.map((l) => (
                     <button
                       key={l}
+                      type="button"
+                      disabled={isWolofLocked(l)}
+                      title={isWolofLocked(l) ? "Bientôt disponible" : undefined}
                       onClick={() => {
-                        setLang(l);
+                        if (isWolofLocked(l)) return;
+                        setLanguage(l);
                         setLangOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                        lang === l
-                          ? "bg-bg-tag text-green"
-                          : "text-text-secondary hover:bg-surface-2 hover:text-text"
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors ${
+                        isWolofLocked(l)
+                          ? "cursor-not-allowed opacity-60"
+                          : language === l
+                            ? "bg-bg-tag text-green"
+                            : "text-text-secondary hover:bg-surface-2 hover:text-text"
                       }`}
                     >
-                      {l === "FR" ? "Français" : l === "EN" ? "English" : "Wolof"}
+                      <span>{LANGUAGE_LABELS[l]}</span>
+                      {isWolofLocked(l) && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
                     </button>
                   ))}
                 </div>
@@ -86,14 +103,14 @@ export function Header() {
             {hydrated && session ? (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="hidden md:inline-flex items-center gap-2 rounded-full border border-green/25 bg-bg-tag/95 px-3.5 py-2 text-left transition-colors hover:border-green/45"
+                className="hidden items-center gap-2 rounded-full border border-green/25 bg-bg-tag px-3.5 py-2 text-left transition-colors hover:border-green/45 md:inline-flex"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-green text-bg text-xs font-semibold">
                   {session.initials}
                 </span>
                 <span className="leading-tight">
                   <span className="block text-[0.62rem] uppercase tracking-[0.18em] text-text-muted">
-                    Connecté
+                    {COMMON_COPY.header.connected[language]}
                   </span>
                   <span className="block text-sm font-medium text-text">{session.roleLabel}</span>
                 </span>
@@ -101,25 +118,58 @@ export function Header() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="hidden md:inline-flex items-center rounded-full bg-gradient-green px-4 py-2 text-sm font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)] hover:opacity-95 transition-opacity"
+                className="hidden items-center rounded-full bg-gradient-green px-4 py-2 text-sm font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)] transition-opacity hover:opacity-95 md:inline-flex"
               >
-                Se connecter
+                {COMMON_COPY.header.signIn[language]}
               </button>
             )}
 
             <button
-              className="lg:hidden rounded-full border border-white/35 bg-background/60 p-2 text-text backdrop-blur-xl"
+              className="rounded-full border border-border bg-background p-2 text-text lg:hidden"
               onClick={() => setOpen(!open)}
-              aria-label="Menu"
+              aria-label={COMMON_COPY.header.menu[language]}
             >
-              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
         {open && (
-          <div className="lg:hidden border-t border-white/25 bg-background/90 backdrop-blur-2xl">
-            <div className="container-museum py-4 flex flex-col gap-2">
+          <div className="border-t border-border bg-background lg:hidden">
+            <div className="container-museum flex flex-col gap-2 py-4">
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
+                  {language === "EN" ? "Language" : "Langue"}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {LANGUAGE_ORDER.map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      disabled={isWolofLocked(l)}
+                      title={isWolofLocked(l) ? "Bientôt disponible" : undefined}
+                      onClick={() => {
+                        if (isWolofLocked(l)) return;
+                        setLanguage(l);
+                        setOpen(false);
+                      }}
+                      className={`rounded-xl border px-3 py-2 text-xs transition-colors ${
+                        isWolofLocked(l)
+                          ? "cursor-not-allowed border-border bg-background text-text-muted opacity-60"
+                          : language === l
+                            ? "border-green/40 bg-bg-tag text-green"
+                            : "border-border bg-background text-text-secondary hover:border-green/30 hover:text-text"
+                      }`}
+                    >
+                      <span className="inline-flex items-center justify-center gap-1">
+                        {LANGUAGE_SHORT_LABELS[l]}
+                        {isWolofLocked(l) && <Lock className="h-3 w-3" aria-hidden="true" />}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {NAV.map((item) => (
                 <Link
                   key={item.to}
@@ -132,14 +182,15 @@ export function Header() {
                       : "border-border bg-surface text-text-secondary hover:border-green/30 hover:text-text"
                   }`}
                 >
-                  {item.label}
-                  <ArrowRight className="w-4 h-4 text-green" />
+                  {COMMON_COPY.nav[item.key][language]}
+                  <ArrowRight className="h-4 w-4 text-green" />
                 </Link>
               ))}
+
               {hydrated && session ? (
                 <div className="mt-3 rounded-2xl border border-green/20 bg-bg-tag p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                    Session active
+                    {language === "EN" ? "Active session" : "Session active"}
                   </div>
                   <div className="mt-1 font-serif text-xl text-text">{session.name}</div>
                   <p className="mt-1 text-sm text-text-secondary">{session.roleLabel}</p>
@@ -151,7 +202,7 @@ export function Header() {
                       }}
                       className="inline-flex flex-1 items-center justify-center rounded-2xl bg-gradient-green px-4 py-3 font-medium text-bg"
                     >
-                      Mon espace
+                      {language === "EN" ? "My space" : "Mon espace"}
                     </button>
                     <button
                       onClick={() => {
@@ -172,7 +223,7 @@ export function Header() {
                   }}
                   className="mt-3 inline-flex items-center justify-center rounded-2xl bg-gradient-green px-4 py-3 font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)]"
                 >
-                  Se connecter
+                  {COMMON_COPY.header.signIn[language]}
                 </button>
               )}
             </div>

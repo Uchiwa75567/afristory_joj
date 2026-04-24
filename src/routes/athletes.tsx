@@ -2,6 +2,8 @@ import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-ro
 import { Search, ArrowRight, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizeAthlete, translateCountry } from "@/components/language/siteContent";
 import { ATHLETES } from "@/data/mock";
 
 export const Route = createFileRoute("/athletes")({
@@ -19,33 +21,47 @@ export const Route = createFileRoute("/athletes")({
   component: AthletesPage,
 });
 
-const FILTERS = ["Tous", "Hommes", "Femmes"] as const;
+type GenderFilter = "all" | "male" | "female";
 
 function AthletesPage() {
   const matchRoute = useMatchRoute();
   const detailMatch = matchRoute({ to: "/athletes/$id" });
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.athletes;
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("Tous");
-  const [country, setCountry] = useState<string>("Tous les pays");
+  const [filter, setFilter] = useState<GenderFilter>("all");
+  const [country, setCountry] = useState<string>("");
 
   const countries = useMemo(
-    () => ["Tous les pays", ...Array.from(new Set(ATHLETES.map((a) => a.country))).sort()],
+    () => ["", ...Array.from(new Set(ATHLETES.map((athlete) => athlete.country))).sort()],
     [],
   );
 
   const filtered = useMemo(() => {
-    return ATHLETES.filter((a) => {
-      if (filter === "Hommes" && a.gender !== "M") return false;
-      if (filter === "Femmes" && a.gender !== "F") return false;
-      if (country !== "Tous les pays" && a.country !== country) return false;
+    return ATHLETES.filter((athlete) => {
+      if (filter === "male" && athlete.gender !== "M") return false;
+      if (filter === "female" && athlete.gender !== "F") return false;
+      if (country && athlete.country !== country) return false;
+
+      const localized = localizeAthlete(athlete, language);
       if (
         query &&
-        !`${a.name} ${a.discipline} ${a.country}`.toLowerCase().includes(query.toLowerCase())
+        !`${localized.name} ${localized.discipline} ${localized.country} ${localized.bio} ${localized.story
+          .map((step) => `${step.title} ${step.description}`)
+          .join(" ")}`
+          .toLowerCase()
+          .includes(query.toLowerCase())
       )
         return false;
       return true;
-    });
-  }, [query, filter, country]);
+    }).map((athlete) => localizeAthlete(athlete, language));
+  }, [query, filter, country, language]);
+
+  const genderFilters: Array<{ value: GenderFilter; label: string }> = [
+    { value: "all", label: language === "EN" ? "All" : "Tous" },
+    { value: "male", label: language === "EN" ? "Men" : "Hommes" },
+    { value: "female", label: language === "EN" ? "Women" : "Femmes" },
+  ];
 
   if (detailMatch) {
     return <Outlet />;
@@ -54,15 +70,14 @@ function AthletesPage() {
   return (
     <PageShell>
       <section className="container-museum pt-16 md:pt-24 pb-10">
-        <div className="eyebrow mb-3">Salle 01 — Galerie</div>
+        <div className="eyebrow mb-3">{copy.kicker[language]}</div>
         <h1 className="font-serif text-5xl md:text-7xl text-cream leading-[1.02] max-w-4xl tracking-tight">
-          Chaque athlète,
+          {copy.titleMain[language]}
           <br />
-          <span className="italic text-orange">une histoire.</span>
+          <span className="italic text-orange">{copy.titleAccent[language]}</span>
         </h1>
         <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-          Portraits, parcours et voix des jeunes talents qui défendront l'Afrique aux JOJ Dakar
-          2026.
+          {copy.intro[language]}
         </p>
       </section>
 
@@ -73,23 +88,23 @@ function AthletesPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un athlète, un pays, une discipline…"
+              placeholder={copy.search[language]}
               className="w-full bg-surface border border-border rounded-md pl-11 pr-4 py-3.5 text-cream text-sm placeholder:text-muted-foreground/60 focus:border-orange/60 focus:outline-none transition-colors"
             />
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-surface border border-border rounded-md p-1">
-              {FILTERS.map((f) => (
+              {genderFilters.map((f) => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
                   className={`px-4 py-2 rounded text-xs transition-colors ${
-                    filter === f
+                    filter === f.value
                       ? "bg-orange text-background"
                       : "text-muted-foreground hover:text-cream"
                   }`}
                 >
-                  {f}
+                  {f.label}
                 </button>
               ))}
             </div>
@@ -101,7 +116,9 @@ function AthletesPage() {
                 className="bg-surface border border-border rounded-md pl-9 pr-8 py-2.5 text-xs text-cream focus:outline-none focus:border-gold/60 appearance-none cursor-pointer"
               >
                 {countries.map((c) => (
-                  <option key={c}>{c}</option>
+                  <option key={c || "all"} value={c}>
+                    {c ? translateCountry(c, language) : copy.allCountries[language]}
+                  </option>
                 ))}
               </select>
             </div>
@@ -109,7 +126,13 @@ function AthletesPage() {
         </div>
         <div className="mt-5 text-sm text-muted-foreground flex items-center gap-2">
           <span className="text-cream font-medium">{filtered.length}</span>
-          athlète{filtered.length > 1 ? "s" : ""} trouvé{filtered.length > 1 ? "s" : ""}
+          {language === "EN"
+            ? filtered.length > 1
+              ? "athletes found"
+              : "athlete found"
+            : filtered.length > 1
+              ? "athlètes trouvés"
+              : "athlète trouvé"}
         </div>
       </section>
 
@@ -117,9 +140,9 @@ function AthletesPage() {
         {filtered.length === 0 ? (
           <div className="border border-border rounded-xl p-16 text-center bg-surface/50">
             <Search className="w-10 h-10 text-muted-foreground mx-auto mb-4" strokeWidth={1.4} />
-            <h3 className="font-serif text-2xl text-cream">Aucun athlète trouvé</h3>
+            <h3 className="font-serif text-2xl text-cream">{copy.notFoundTitle[language]}</h3>
             <p className="text-muted-foreground mt-2 text-sm">
-              Essayez un autre filtre ou un autre mot-clé.
+              {copy.notFoundText[language]}
             </p>
           </div>
         ) : (
@@ -130,7 +153,7 @@ function AthletesPage() {
                 to="/athletes/$id"
                 params={{ id: a.id }}
                 className="photo-card group block h-full cursor-pointer animate-fade-in-up"
-                title={`Ouvrir le détail de ${a.name}`}
+                title={`${copy.openDetail[language]} ${a.name}`}
                 style={{ animationDelay: `${Math.min(i, 8) * 0.04}s` }}
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -151,22 +174,28 @@ function AthletesPage() {
                       {a.bio}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-border bg-background/70 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.2em] text-text-secondary backdrop-blur-md">
-                        {a.story.length} chapitres
-                      </span>
+                        <span className="rounded-full border border-border bg-background/70 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.2em] text-text-secondary backdrop-blur-md">
+                          {a.story.length} {copy.chapters[language]}
+                        </span>
                       {a.documentaryVideoIds?.length ? (
                         <span className="rounded-full border border-green/30 bg-green/10 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.2em] text-green backdrop-blur-md">
-                          {a.documentaryVideoIds.length} documentaire
-                          {a.documentaryVideoIds.length > 1 ? "s" : ""}
+                          {a.documentaryVideoIds.length}{" "}
+                          {language === "EN"
+                            ? a.documentaryVideoIds.length > 1
+                              ? "documentaries"
+                              : "documentary"
+                            : a.documentaryVideoIds.length > 1
+                              ? "documentaires"
+                              : "documentaire"}
                         </span>
                       ) : (
                         <span className="rounded-full border border-border bg-background/70 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.2em] text-text-muted backdrop-blur-md">
-                          Histoire détaillée
+                          {copy.detailText[language]}
                         </span>
                       )}
                     </div>
                     <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-cream/80 opacity-0 transition-opacity group-hover:opacity-100">
-                      Ouvrir le détail <ArrowRight className="h-3.5 w-3.5" />
+                      {copy.openDetail[language]} <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                   </div>
                 </div>

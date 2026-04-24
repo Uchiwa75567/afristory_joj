@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { PAGE_COPY, localizeAthlete, localizePodcast, localizeVideo } from "@/components/language/siteContent";
+import {
+  LANGUAGE_LABELS,
+  LANGUAGE_SPEECH_LANG,
+  type AppLanguage,
+  useLanguage,
+} from "@/components/language/LanguageProvider";
 import {
   ATHLETES,
   PODCASTS,
@@ -32,6 +39,24 @@ type InterviewItem = {
   image: string;
 };
 
+function AthleteNotFound() {
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.athleteDetail;
+
+  return (
+    <PageShell>
+      <div className="container-museum py-32 text-center">
+        <h1 className="font-serif text-5xl text-cream">
+          {language === "EN" ? "Athlete not found" : "Athlète introuvable"}
+        </h1>
+        <Link to="/athletes" className="mt-6 inline-block text-orange">
+          ← {copy.back[language]}
+        </Link>
+      </div>
+    </PageShell>
+  );
+}
+
 export const Route = createFileRoute("/athletes/$id")({
   loader: ({ params }) => {
     const athlete = ATHLETES.find((a) => a.id === params.id);
@@ -49,29 +74,48 @@ export const Route = createFileRoute("/athletes/$id")({
         ]
       : [],
   }),
-  notFoundComponent: () => (
-    <PageShell>
-      <div className="container-museum py-32 text-center">
-        <h1 className="font-serif text-5xl text-cream">Athlète introuvable</h1>
-        <Link to="/athletes" className="mt-6 inline-block text-orange">
-          ← Retour à la galerie
-        </Link>
-      </div>
-    </PageShell>
-  ),
+  notFoundComponent: AthleteNotFound,
   component: AthleteDetail,
 });
 
-function buildNarrationParagraphs(athlete: Athlete) {
+function buildNarrationParagraphs(athlete: Athlete, language: AppLanguage) {
   const startYear = athlete.story[0]?.year ?? "ses débuts";
   const endYear = athlete.story[athlete.story.length - 1]?.year ?? startYear;
   const chapterChain = athlete.story.map((step) => `${step.year} - ${step.title}`).join(", ");
+
+  if (language === "EN") {
+    return [
+      `${athlete.name} represents a generation that turns the track into a story. On ${athlete.discipline}, the athlete carries ${athlete.country} with an identity shaped by patience, repetition, and detail.`,
+      `From ${startYear} to ${endYear}, the journey unfolds in chapters: ${chapterChain}. Each step built the same sporting language, clearer, sharper, and more confident.`,
+      `The record brings together ${athlete.achievements.join(", ")} and the filmed archives extend the story beyond the finish line.`,
+    ];
+  }
+
+  if (language === "WO") {
+    return [
+      `Version wolof en préparation pour ${athlete.name}.`,
+      `Le portrait vocal reste disponible en français et en anglais pour le moment.`,
+      `Sélectionne FR ou EN dans le header pour lancer le récit complet sans attendre.`,
+    ];
+  }
 
   return [
     `${athlete.name} incarne une génération qui transforme la piste en récit. Sur ${athlete.discipline}, il ou elle porte ${athlete.country} avec une identité façonnée par la patience, la répétition et les détails.`,
     `De ${startYear} à ${endYear}, son parcours s'écrit en chapitres: ${chapterChain}. Chaque étape a construit le même langage sportif, plus sûr, plus précis, plus lisible.`,
     `Son palmarès réunit ${athlete.achievements.join(", ")} et ses archives filmées prolongent ce récit au-delà de la ligne d'arrivée.`,
   ];
+}
+
+function getNarrationLead(athlete: Athlete, language: AppLanguage) {
+  if (language === "EN") {
+    return `The browser reads the profile of ${athlete.name}. The text is split into sentences so the page keeps its rhythm.`;
+  }
+
+  if (language === "WO") {
+    return `Version wolof en préparation pour ${athlete.name}. Sélectionne FR ou EN pour écouter le portrait vocal dès maintenant.`;
+  }
+
+  return `Le navigateur lit le dossier de ${athlete.name}. Le texte est découpé en phrases pour accompagner la page sans casser le rythme.`;
 }
 
 function formatClock(totalSeconds: number) {
@@ -83,12 +127,19 @@ function formatClock(totalSeconds: number) {
 
 function AthleteDetail() {
   const athlete = Route.useLoaderData();
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.athleteDetail;
+  const localizedAthlete = useMemo(() => localizeAthlete(athlete, language), [athlete, language]);
   const idx = ATHLETES.findIndex((a) => a.id === athlete.id);
   const prev = ATHLETES[(idx - 1 + ATHLETES.length) % ATHLETES.length];
   const next = ATHLETES[(idx + 1) % ATHLETES.length];
+  const localizedPrev = useMemo(() => localizeAthlete(prev, language), [prev, language]);
+  const localizedNext = useMemo(() => localizeAthlete(next, language), [next, language]);
   const audioInterviews = useMemo<PodcastEpisode[]>(() => {
     const fromAthleteId = PODCASTS.filter((episode) => episode.athleteId === athlete.id);
-    const fallback = athlete.podcastId ? PODCASTS.filter((episode) => episode.id === athlete.podcastId) : [];
+    const fallback = athlete.podcastId
+      ? PODCASTS.filter((episode) => episode.id === athlete.podcastId)
+      : [];
     const interviews = fromAthleteId.length ? fromAthleteId : fallback;
     return Array.from(new Map(interviews.map((episode) => [episode.id, episode])).values());
   }, [athlete.id, athlete.podcastId]);
@@ -96,35 +147,49 @@ function AthleteDetail() {
     .map((videoId) => VIDEOS.find((video) => video.id === videoId))
     .filter((video): video is VideoItem => Boolean(video));
 
-  const narrativeParagraphs = useMemo(() => buildNarrationParagraphs(athlete), [athlete]);
+  const narrativeParagraphs = useMemo(
+    () => buildNarrationParagraphs(localizedAthlete, language),
+    [localizedAthlete, language],
+  );
   const narrationText = useMemo(() => narrativeParagraphs.join(" "), [narrativeParagraphs]);
+  const narrationLead = useMemo(
+    () => getNarrationLead(localizedAthlete, language),
+    [localizedAthlete, language],
+  );
 
   const interviewItems = useMemo<InterviewItem[]>(
     () => [
-      ...audioInterviews.map((podcast) => ({
-        kind: "audio" as const,
-        id: podcast.id,
-        title: podcast.title,
-        subtitle: podcast.athleteName,
-        description: podcast.description,
-        meta: `${podcast.duration} · ${podcast.category}`,
-        image: podcast.cover,
-      })),
-      ...documentaryVideos.map((video) => ({
-        kind: "video" as const,
-        id: video.id,
-        title: video.title,
-        subtitle: video.subtitle,
-        description: video.description,
-        meta: `${video.cat} · ${video.duration}`,
-        image: video.image,
-      })),
+      ...audioInterviews.map((podcast) => {
+        const localizedPodcast = localizePodcast(podcast, language);
+        return {
+          kind: "audio" as const,
+          id: podcast.id,
+          title: localizedPodcast.title,
+          subtitle: localizedPodcast.athleteName,
+          description: localizedPodcast.description,
+          meta: `${podcast.duration} · ${podcast.category}`,
+          image: podcast.cover,
+        };
+      }),
+      ...documentaryVideos.map((video) => {
+        const localizedVideo = localizeVideo(video, language);
+        return {
+          kind: "video" as const,
+          id: video.id,
+          title: localizedVideo.title,
+          subtitle: localizedVideo.subtitle,
+          description: localizedVideo.description,
+          meta: `${video.cat} · ${video.duration}`,
+          image: video.image,
+        };
+      }),
     ],
-    [audioInterviews, documentaryVideos],
+    [audioInterviews, documentaryVideos, language],
   );
 
-  const storyStartYear = athlete.story[0]?.year ?? "0000";
-  const storyEndYear = athlete.story[athlete.story.length - 1]?.year ?? storyStartYear;
+  const storyStartYear = localizedAthlete.story[0]?.year ?? "0000";
+  const storyEndYear =
+    localizedAthlete.story[localizedAthlete.story.length - 1]?.year ?? storyStartYear;
 
   return (
     <PageShell>
@@ -133,7 +198,7 @@ function AthleteDetail() {
           to="/athletes"
           className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text"
         >
-          <ArrowLeft className="h-4 w-4" /> Retour à la galerie
+          <ArrowLeft className="h-4 w-4" /> {copy.back[language]}
         </Link>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.02fr_0.98fr]">
@@ -147,22 +212,25 @@ function AthleteDetail() {
               />
               <div className="absolute left-5 top-5 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-text-secondary backdrop-blur-md">
-                  <span>{athlete.flag}</span> {athlete.countryCode}
+                  <span>{localizedAthlete.flag}</span> {localizedAthlete.countryCode}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-green/25 bg-green/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-green backdrop-blur-md">
-                  <MapPin className="h-3.5 w-3.5" /> {athlete.discipline}
+                  <MapPin className="h-3.5 w-3.5" /> {localizedAthlete.discipline}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-text-secondary backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5 text-green" />
-                  {athlete.story.length} chapitres
+                  {localizedAthlete.story.length}{" "}
+                  {language === "EN" ? "chapters" : "chapitres"}
                 </span>
               </div>
               <div className="absolute bottom-0 left-0 right-0 p-5">
                 <div className="max-w-sm rounded-2xl border border-border bg-background/85 p-4 backdrop-blur-xl">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                    Détail athlète
+                    {copy.detailKicker[language]}
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-text-secondary">{athlete.bio}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+                    {localizedAthlete.bio}
+                  </p>
                 </div>
               </div>
             </div>
@@ -170,24 +238,30 @@ function AthleteDetail() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                  Histoire
+                  {copy.history[language]}
                 </div>
-                <div className="mt-2 font-serif text-3xl text-text">{athlete.story.length}</div>
-                <div className="mt-1 text-sm text-text-secondary">chapitres chronologiques</div>
+                <div className="mt-2 font-serif text-3xl text-text">{localizedAthlete.story.length}</div>
+                <div className="mt-1 text-sm text-text-secondary">
+                  {language === "EN" ? "chronological chapters" : "chapitres chronologiques"}
+                </div>
               </div>
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                  Période
+                  {copy.period[language]}
                 </div>
                 <div className="mt-2 font-serif text-3xl text-text">{storyStartYear}</div>
-                <div className="mt-1 text-sm text-text-secondary">à {storyEndYear}</div>
+                <div className="mt-1 text-sm text-text-secondary">
+                  {language === "EN" ? "to" : "à"} {storyEndYear}
+                </div>
               </div>
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                  Interviews
+                  {copy.interviews[language]}
                 </div>
                 <div className="mt-2 font-serif text-3xl text-text">{interviewItems.length}</div>
-                <div className="mt-1 text-sm text-text-secondary">audio et vidéos éditoriales</div>
+                <div className="mt-1 text-sm text-text-secondary">
+                  {copy.palette[language]}
+                </div>
               </div>
             </div>
           </div>
@@ -195,45 +269,47 @@ function AthleteDetail() {
           <div className="flex flex-col gap-6">
             <div className="rounded-[2rem] border border-border bg-surface p-6 shadow-[0_30px_90px_-65px_rgba(13,31,18,0.42)] md:p-8">
               <div className="inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                <Sparkles className="h-3.5 w-3.5" /> Dossier éditorial
+                <Sparkles className="h-3.5 w-3.5" /> {copy.detailKicker[language]}
               </div>
 
               <h1 className="mt-4 font-serif text-5xl leading-[0.95] text-text md:text-7xl">
-                {athlete.name.split(" ")[0]}
+                {localizedAthlete.name.split(" ")[0]}
                 <br />
                 <span className="italic text-orange">
-                  {athlete.name.split(" ").slice(1).join(" ")}
+                  {localizedAthlete.name.split(" ").slice(1).join(" ")}
                 </span>
               </h1>
 
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-text-secondary">
-                {athlete.bio}
+                {localizedAthlete.bio}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Pays
+                    {language === "EN" ? "Country" : "Pays"}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{athlete.country}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">{localizedAthlete.country}</div>
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Discipline
-                  </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{athlete.discipline}</div>
-                </div>
-                <div className="rounded-2xl border border-border bg-background p-4">
-                  <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Palmarès
+                    {language === "EN" ? "Discipline" : "Discipline"}
                   </div>
                   <div className="mt-2 font-serif text-2xl text-text">
-                    {athlete.achievements.length}
+                    {localizedAthlete.discipline}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Interviews
+                    {language === "EN" ? "Honors" : "Palmarès"}
+                  </div>
+                  <div className="mt-2 font-serif text-2xl text-text">
+                    {localizedAthlete.achievements.length}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
+                    {copy.interviews[language]}
                   </div>
                   <div className="mt-2 font-serif text-2xl text-text">{interviewItems.length}</div>
                 </div>
@@ -246,31 +322,43 @@ function AthleteDetail() {
                     params={{ id: audioInterviews[0].id }}
                     className="inline-flex items-center gap-2 rounded-full bg-gradient-green px-5 py-3 text-sm font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)] transition-transform hover:scale-[1.02]"
                   >
-                    <Headphones className="h-4 w-4" /> Écouter l'interview
+                    <Headphones className="h-4 w-4" />
+                    {language === "EN" ? "Listen to the interview" : "Écouter l'interview"}
                   </Link>
                 )}
                 <a
                   href="#narration"
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-green/40 hover:text-text"
                 >
-                  <Play className="h-4 w-4 text-green" /> Lire la narration
+                  <Play className="h-4 w-4 text-green" />{" "}
+                  {language === "EN" ? "Read the narration" : "Lire la narration"}
                 </a>
                 <a
                   href="#interviews"
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-green/40 hover:text-text"
                 >
-                  <Film className="h-4 w-4 text-green" /> Voir les interviews
+                  <Film className="h-4 w-4 text-green" />{" "}
+                  {language === "EN" ? "See interviews" : "Voir les interviews"}
                 </a>
                 <Link
                   to="/histoire"
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-green/40 hover:text-text"
                 >
-                  <BookOpen className="h-4 w-4 text-green" /> Chronologie JOJ
+                  <BookOpen className="h-4 w-4 text-green" />{" "}
+                  {language === "EN" ? "YOG timeline" : "Chronologie JOJ"}
                 </Link>
               </div>
             </div>
 
-            <NarrationPanel athlete={athlete} narrationText={narrationText} />
+            <NarrationPanel
+              athlete={localizedAthlete}
+              narrationText={narrationText}
+              narrationLead={narrationLead}
+              voiceLabel={LANGUAGE_LABELS[language]}
+              speechLang={LANGUAGE_SPEECH_LANG[language]}
+              copy={copy}
+              language={language}
+            />
           </div>
         </div>
 
@@ -280,9 +368,11 @@ function AthleteDetail() {
             className="rounded-[2rem] border border-border bg-surface p-6 md:p-8 shadow-[0_30px_90px_-65px_rgba(13,31,18,0.4)]"
           >
             <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-              <Sparkles className="h-3.5 w-3.5" /> Description en texte
+              <Sparkles className="h-3.5 w-3.5" /> {copy.writtenStory[language]}
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-text">Récit écrit</h2>
+            <h2 className="mt-3 font-serif text-3xl text-text">
+              {language === "EN" ? "Written story" : "Récit écrit"}
+            </h2>
 
             <div className="mt-6 space-y-4">
               {narrativeParagraphs.map((paragraph, paragraphIndex) => (
@@ -296,7 +386,7 @@ function AthleteDetail() {
             </div>
 
             <ol className="mt-8 space-y-4">
-              {athlete.story.map((step, index) => (
+              {localizedAthlete.story.map((step, index) => (
                 <li
                   key={`${step.year}-${step.title}`}
                   className="grid gap-4 md:grid-cols-[110px_1fr]"
@@ -326,10 +416,11 @@ function AthleteDetail() {
           <aside className="space-y-6">
             <div className="rounded-[2rem] border border-border bg-surface p-6 md:p-7">
               <h2 className="flex items-center gap-2 font-serif text-2xl text-text">
-                <Trophy className="h-5 w-5 text-green" strokeWidth={1.6} /> Palmarès
+                <Trophy className="h-5 w-5 text-green" strokeWidth={1.6} />{" "}
+                {language === "EN" ? "Honors" : "Palmarès"}
               </h2>
               <ul className="mt-5 space-y-2.5">
-                {athlete.achievements.map((achievement) => (
+                {localizedAthlete.achievements.map((achievement) => (
                   <li
                     key={achievement}
                     className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-gold/35"
@@ -347,11 +438,15 @@ function AthleteDetail() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="eyebrow mb-2">Interviews et archives</div>
-                  <h2 className="font-serif text-2xl text-text">Ses différents entretiens</h2>
+                  <div className="eyebrow mb-2">{copy.interviewsSection[language]}</div>
+                  <h2 className="font-serif text-2xl text-text">
+                    {language === "EN" ? "Its different interviews" : "Ses différents entretiens"}
+                  </h2>
                 </div>
                 <span className="rounded-full border border-border bg-bg-tag px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-text-secondary">
-                  {interviewItems.length} source{interviewItems.length > 1 ? "s" : ""}
+                  {interviewItems.length}{" "}
+                  {language === "EN" ? "source" : "source"}
+                  {interviewItems.length > 1 ? "s" : ""}
                 </span>
               </div>
 
@@ -373,7 +468,14 @@ function AthleteDetail() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                          {item.kind === "audio" ? "Entretien audio" : "Entretien vidéo"} ·{" "}
+                          {item.kind === "audio"
+                            ? language === "EN"
+                              ? "Audio interview"
+                              : "Entretien audio"
+                            : language === "EN"
+                              ? "Video interview"
+                              : "Entretien vidéo"}{" "}
+                          ·{" "}
                           {item.meta}
                         </div>
                         <h3 className="mt-1 truncate font-serif text-xl text-text transition-colors group-hover:text-green">
@@ -394,7 +496,9 @@ function AthleteDetail() {
                 </div>
               ) : (
                 <div className="mt-5 rounded-2xl border border-dashed border-border bg-background p-5 text-sm leading-relaxed text-text-secondary">
-                  Aucun entretien associé pour l'instant.
+                  {language === "EN"
+                    ? "No interview linked yet."
+                    : "Aucun entretien associé pour l'instant."}
                 </div>
               )}
             </div>
@@ -408,15 +512,15 @@ function AthleteDetail() {
             className="group flex items-center gap-4 rounded-[1.5rem] border border-border bg-surface p-4 text-left transition-colors hover:border-green/30"
           >
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border">
-              <img src={prev.image} alt={prev.name} className="h-full w-full object-cover" />
+              <img src={localizedPrev.image} alt={localizedPrev.name} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
                 <ArrowLeft className="mr-1 inline-block h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
-                Précédent
+                {copy.previous[language]}
               </div>
               <div className="truncate font-serif text-lg text-text group-hover:text-green">
-                {prev.name}
+                {localizedPrev.name}
               </div>
             </div>
           </Link>
@@ -428,15 +532,15 @@ function AthleteDetail() {
           >
             <div className="min-w-0 flex-1">
               <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                Suivant
+                {copy.next[language]}
                 <ArrowRight className="ml-1 inline-block h-3 w-3 transition-transform group-hover:translate-x-0.5" />
               </div>
               <div className="truncate font-serif text-lg text-text group-hover:text-green">
-                {next.name}
+                {localizedNext.name}
               </div>
             </div>
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border">
-              <img src={next.image} alt={next.name} className="h-full w-full object-cover" />
+              <img src={localizedNext.image} alt={localizedNext.name} className="h-full w-full object-cover" />
             </div>
           </Link>
         </div>
@@ -445,7 +549,23 @@ function AthleteDetail() {
   );
 }
 
-function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narrationText: string }) {
+function NarrationPanel({
+  athlete,
+  narrationText,
+  narrationLead,
+  voiceLabel,
+  speechLang,
+  copy,
+  language,
+}: {
+  athlete: Athlete;
+  narrationText: string;
+  narrationLead: string;
+  voiceLabel: string;
+  speechLang: string;
+  copy: typeof PAGE_COPY.athleteDetail;
+  language: AppLanguage;
+}) {
   const [status, setStatus] = useState<"idle" | "playing" | "paused">("idle");
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<number | null>(null);
@@ -481,7 +601,7 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(narrationText);
-      utterance.lang = "fr-FR";
+      utterance.lang = speechLang;
       utterance.rate = 0.96;
       utterance.pitch = 1;
       utterance.onend = () => stopNarration(true);
@@ -537,7 +657,7 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
         window.speechSynthesis.cancel();
       }
     };
-  }, [athlete.id]);
+  }, [athlete.id, speechLang]);
 
   useEffect(() => {
     return () => {
@@ -557,18 +677,19 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="eyebrow mb-2 text-gold">Portrait vocal</div>
-          <h2 className="font-serif text-2xl text-on-dark">Écoute du récit</h2>
+          <div className="eyebrow mb-2 text-gold">{copy.voiceKicker[language]}</div>
+          <h2 className="font-serif text-2xl text-on-dark">{copy.voiceTitle[language]}</h2>
         </div>
         <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
-          {status === "playing" ? "En lecture" : status === "paused" ? "En pause" : "Prêt"}
+          {status === "playing"
+            ? copy.voiceStatusPlaying[language]
+            : status === "paused"
+              ? copy.voiceStatusPaused[language]
+              : copy.voiceStatusIdle[language]}
         </span>
       </div>
 
-      <p className="mt-4 text-sm leading-relaxed text-on-dark-muted">
-        Le navigateur lit le dossier de {athlete.name}. Le texte est découpé en phrases pour
-        accompagner la page sans casser le rythme.
-      </p>
+      <p className="mt-4 text-sm leading-relaxed text-on-dark-muted">{narrationLead}</p>
 
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
         <div
@@ -579,7 +700,9 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
 
       <div className="mt-5 flex items-center justify-between text-xs uppercase tracking-[0.22em] text-on-dark-soft">
         <span>{formatClock(elapsed)}</span>
-        <span>Voix FR</span>
+        <span>
+          {language === "EN" ? "Voice" : "Voix"} {voiceLabel}
+        </span>
         <span>{formatClock(totalSeconds)}</span>
       </div>
 
@@ -599,15 +722,15 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
         >
           {status === "playing" ? (
             <>
-              <Pause className="h-4 w-4" /> Pause
+              <Pause className="h-4 w-4" /> {language === "EN" ? "Pause" : "Pause"}
             </>
           ) : status === "paused" ? (
             <>
-              <Play className="h-4 w-4" /> Reprendre
+              <Play className="h-4 w-4" /> {language === "EN" ? "Resume" : "Reprendre"}
             </>
           ) : (
             <>
-              <Play className="h-4 w-4" /> Lire
+              <Play className="h-4 w-4" /> {language === "EN" ? "Play" : "Lire"}
             </>
           )}
         </button>
@@ -617,13 +740,13 @@ function NarrationPanel({ athlete, narrationText }: { athlete: Athlete; narratio
           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-on-dark-muted transition-colors hover:border-gold/35 hover:text-on-dark"
         >
           <Headphones className="h-4 w-4" />
-          Réinitialiser
+          {copy.reset[language]}
         </button>
       </div>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 p-4">
         <div className="text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
-          Texte vocal
+          {language === "EN" ? "Voice text" : "Texte vocal"}
         </div>
         <p className="mt-2 text-sm leading-relaxed text-on-dark-muted">{narrationText}</p>
       </div>

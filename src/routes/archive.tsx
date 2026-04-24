@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, Headphones, User } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizeAthlete, localizePodcast } from "@/components/language/siteContent";
 import { ATHLETES, PODCASTS } from "@/data/mock";
 
 export const Route = createFileRoute("/archive")({
@@ -24,13 +26,30 @@ type Result =
   | { kind: "podcast"; id: string; title: string; subtitle: string; image: string };
 
 function ArchivePage() {
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.archive;
   const [q, setQ] = useState("");
-  const [type, setType] = useState<"Tous" | "Athlètes" | "Podcasts">("Tous");
+  const [type, setType] = useState<"all" | "athletes" | "podcasts">("all");
+
+  const localizedAthletes = useMemo(
+    () => ATHLETES.map((athlete) => localizeAthlete(athlete, language)),
+    [language],
+  );
+  const localizedPodcasts = useMemo(
+    () => PODCASTS.map((podcast) => localizePodcast(podcast, language)),
+    [language],
+  );
 
   const results: Result[] = useMemo(() => {
     const lower = q.toLowerCase();
-    const a: Result[] = ATHLETES.filter(
-      (x) => !q || `${x.name} ${x.country} ${x.discipline}`.toLowerCase().includes(lower),
+    const a: Result[] = localizedAthletes.filter((x) =>
+      !q
+        ? true
+        : `${x.name} ${x.country} ${x.discipline} ${x.bio} ${x.story
+            .map((step) => `${step.year} ${step.title} ${step.description}`)
+            .join(" ")}`
+            .toLowerCase()
+            .includes(lower),
     ).map((x) => ({
       kind: "athlete",
       id: x.id,
@@ -39,8 +58,8 @@ function ArchivePage() {
       flag: x.flag,
       image: x.image,
     }));
-    const p: Result[] = PODCASTS.filter(
-      (x) => !q || `${x.title} ${x.athleteName} ${x.description}`.toLowerCase().includes(lower),
+    const p: Result[] = localizedPodcasts.filter((x) =>
+      !q ? true : `${x.title} ${x.athleteName} ${x.description}`.toLowerCase().includes(lower),
     ).map((x) => ({
       kind: "podcast",
       id: x.id,
@@ -48,22 +67,22 @@ function ArchivePage() {
       subtitle: `${x.athleteName} · ${x.duration}`,
       image: x.cover,
     }));
-    if (type === "Athlètes") return a;
-    if (type === "Podcasts") return p;
+    if (type === "athletes") return a;
+    if (type === "podcasts") return p;
     return [...a, ...p];
-  }, [q, type]);
+  }, [q, type, localizedAthletes, localizedPodcasts]);
 
   return (
     <PageShell>
       <section className="container-museum pt-16 md:pt-24 pb-10">
-        <div className="eyebrow mb-3">Salle 06 — Archive</div>
+        <div className="eyebrow mb-3">{copy.kicker[language]}</div>
         <h1 className="font-serif text-5xl md:text-7xl text-cream leading-[1.02] max-w-4xl tracking-tight">
-          Une mémoire
+          {copy.titleMain[language]}
           <br />
-          <span className="italic text-orange">qui restera.</span>
+          <span className="italic text-orange">{copy.titleAccent[language]}</span>
         </h1>
         <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-          Recherchez parmi les athlètes et les épisodes podcast du musée.
+          {copy.intro[language]}
         </p>
       </section>
 
@@ -74,40 +93,50 @@ function ArchivePage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Chercher dans toute l'archive…"
+              placeholder={copy.search[language]}
               className="w-full bg-surface border border-border rounded-md pl-11 pr-4 py-3.5 text-cream text-sm placeholder:text-muted-foreground/60 focus:border-orange/60 focus:outline-none"
             />
           </div>
           <div className="flex items-center bg-surface border border-border rounded-md p-1">
-            {(["Tous", "Athlètes", "Podcasts"] as const).map((t) => (
+            {[
+              { value: "all" as const, label: copy.all[language] },
+              { value: "athletes" as const, label: copy.athletes[language] },
+              { value: "podcasts" as const, label: copy.podcasts[language] },
+            ].map((t) => (
               <button
-                key={t}
-                onClick={() => setType(t)}
+                key={t.value}
+                onClick={() => setType(t.value)}
                 className={`px-4 py-2 rounded text-xs transition-colors ${
-                  type === t
+                  type === t.value
                     ? "bg-orange text-background"
                     : "text-muted-foreground hover:text-cream"
                 }`}
               >
-                {t}
+                {t.label}
               </button>
             ))}
           </div>
         </div>
         <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-orange" /> Athlète
+            <User className="w-3.5 h-3.5 text-orange" /> {copy.athleteLabel[language]}
           </span>
           <span className="flex items-center gap-1.5">
-            <Headphones className="w-3.5 h-3.5 text-orange" /> Podcast
+            <Headphones className="w-3.5 h-3.5 text-orange" /> {copy.podcastLabel[language]}
           </span>
         </div>
       </section>
 
       <section className="container-museum py-10">
         <div className="text-sm text-muted-foreground mb-5">
-          <span className="text-cream font-medium">{results.length}</span> résultat
-          {results.length > 1 ? "s" : ""}
+          <span className="text-cream font-medium">{results.length}</span>{" "}
+          {language === "EN"
+            ? results.length > 1
+              ? "results"
+              : "result"
+            : results.length > 1
+              ? "résultats"
+              : "résultat"}
         </div>
 
         <div className="grid gap-3">
@@ -133,7 +162,7 @@ function ArchivePage() {
                   ) : (
                     <Headphones className="w-3 h-3" />
                   )}
-                  {r.kind === "athlete" ? "Athlète" : "Podcast"}
+                  {r.kind === "athlete" ? copy.athleteLabel[language] : copy.podcastLabel[language]}
                 </div>
                 <h3 className="font-serif text-lg text-cream truncate group-hover:text-gold-2 transition-colors">
                   {r.title}

@@ -17,6 +17,13 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import {
+  PAGE_COPY,
+  localizeAthlete,
+  localizeVideo,
+  translateVideoCategory,
+} from "@/components/language/siteContent";
 import { ATHLETES, VIDEOS, type VideoItem } from "@/data/mock";
 
 export const Route = createFileRoute("/videos/$id")({
@@ -39,18 +46,27 @@ export const Route = createFileRoute("/videos/$id")({
         ]
       : [],
   }),
-  notFoundComponent: () => (
+  notFoundComponent: VideoNotFound,
+  component: VideoDetailPage,
+});
+
+function VideoNotFound() {
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.videoDetail;
+
+  return (
     <PageShell>
       <div className="container-museum py-32 text-center">
-        <h1 className="font-serif text-5xl text-cream">Vidéo introuvable</h1>
+        <h1 className="font-serif text-5xl text-cream">
+          {language === "EN" ? "Video not found" : "Vidéo introuvable"}
+        </h1>
         <Link to="/videos" className="mt-6 inline-block text-orange">
-          ← Retour à la galerie vidéo
+          ← {copy.back[language]}
         </Link>
       </div>
     </PageShell>
-  ),
-  component: VideoDetailPage,
-});
+  );
+}
 
 function parseDuration(duration: string) {
   const [minutes, seconds] = duration.split(":").map((part) => Number(part));
@@ -71,12 +87,22 @@ function getShareUrl(videoId: string) {
 
 function VideoDetailPage() {
   const video: VideoItem = Route.useLoaderData();
-  const relatedAthlete = ATHLETES.find((athlete) =>
-    athlete.documentaryVideoIds?.includes(video.id),
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.videoDetail;
+  const localizedVideo = useMemo(() => localizeVideo(video, language), [language, video]);
+  const relatedAthlete = useMemo(
+    () => ATHLETES.find((athlete) => athlete.documentaryVideoIds?.includes(video.id)),
+    [video.id],
+  );
+  const localizedRelatedAthlete = useMemo(
+    () => (relatedAthlete ? localizeAthlete(relatedAthlete, language) : null),
+    [language, relatedAthlete],
   );
   const currentIndex = VIDEOS.findIndex((item) => item.id === video.id);
   const nextVideo = VIDEOS[(currentIndex + 1) % VIDEOS.length];
   const prevVideo = VIDEOS[(currentIndex - 1 + VIDEOS.length) % VIDEOS.length];
+  const localizedNextVideo = useMemo(() => localizeVideo(nextVideo, language), [language, nextVideo]);
+  const localizedPrevVideo = useMemo(() => localizeVideo(prevVideo, language), [language, prevVideo]);
   const durationSeconds = useMemo(() => parseDuration(video.duration), [video.duration]);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -115,9 +141,9 @@ function VideoDetailPage() {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(getShareUrl(video.id));
-      toast.success("Lien copié");
+      toast.success(language === "EN" ? "Link copied" : "Lien copié");
     } catch {
-      toast.error("Impossible de copier le lien");
+      toast.error(language === "EN" ? "Unable to copy link" : "Impossible de copier le lien");
     }
   };
 
@@ -132,14 +158,14 @@ function VideoDetailPage() {
 
     try {
       await navigator.share({
-        title: `${video.title} — AfriStory JOJ`,
-        text: video.description,
+        title: `${localizedVideo.title} — AfriStory JOJ`,
+        text: localizedVideo.description,
         url: window.location.href,
       });
-      toast.success("Contenu partagé");
+      toast.success(language === "EN" ? "Content shared" : "Contenu partagé");
     } catch (error) {
       if ((error as DOMException).name !== "AbortError") {
-        toast.error("Partage indisponible");
+        toast.error(language === "EN" ? "Share unavailable" : "Partage indisponible");
       }
     }
   };
@@ -148,7 +174,7 @@ function VideoDetailPage() {
     if (typeof window === "undefined") return;
 
     const shareUrl = getShareUrl(video.id);
-    const message = `${video.title} — ${video.description} ${shareUrl}`;
+    const message = `${localizedVideo.title} — ${localizedVideo.description} ${shareUrl}`;
 
     const urls = {
       whatsapp: `https://wa.me/?text=${encodeURIComponent(message)}`,
@@ -159,7 +185,7 @@ function VideoDetailPage() {
     } as const;
 
     window.open(urls[target], "_blank", "noopener,noreferrer");
-    toast.success("Fenêtre de partage ouverte");
+    toast.success(language === "EN" ? "Share window opened" : "Fenêtre de partage ouverte");
   };
 
   const togglePlayback = () => setIsPlaying((current) => !current);
@@ -171,12 +197,12 @@ function VideoDetailPage() {
           to="/videos"
           className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text"
         >
-          <ArrowLeft className="w-4 h-4" /> Retour à la galerie vidéo
+          <ArrowLeft className="w-4 h-4" /> {copy.returnGallery[language]}
         </Link>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.12fr_0.88fr]">
           <div className="relative overflow-hidden rounded-[2rem] border border-border bg-dark text-on-dark shadow-[0_35px_90px_-60px_rgba(13,31,18,0.5)]">
-            <img src={video.image} alt={video.title} className="h-full w-full object-cover" />
+            <img src={localizedVideo.image} alt={localizedVideo.title} className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-br from-dark/15 via-dark/40 to-dark/85" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(29,191,96,0.2),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(246,166,35,0.16),_transparent_28%)]" />
 
@@ -184,31 +210,31 @@ function VideoDetailPage() {
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft backdrop-blur-md">
                   <Film className="w-3.5 h-3.5 text-green" />
-                  {video.cat}
+                  {translateVideoCategory(localizedVideo.cat, language)}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-green/25 bg-green/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-green backdrop-blur-md">
-                  {video.duration}
+                  {localizedVideo.duration}
                 </span>
-                {video.badge && (
+                {localizedVideo.badge && (
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] backdrop-blur-md ${
-                      video.badge === "LIVE"
+                      localizedVideo.badge === "LIVE"
                         ? "border-destructive/40 bg-destructive/15 text-destructive"
                         : "border-gold/30 bg-gold/15 text-gold"
                     }`}
                   >
-                    {video.badge}
+                    {localizedVideo.badge}
                   </span>
                 )}
               </div>
 
               <div className="max-w-3xl">
-                <div className="eyebrow mb-3 text-gold">Lecture active</div>
+                <div className="eyebrow mb-3 text-gold">{copy.live[language]}</div>
                 <h1 className="font-serif text-5xl leading-[0.95] text-on-dark md:text-7xl">
-                  {video.title}
+                  {localizedVideo.title}
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-dark-muted">
-                  {video.description}
+                  {localizedVideo.description}
                 </p>
               </div>
 
@@ -216,10 +242,10 @@ function VideoDetailPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
-                      Panneau de lecture
+                      {copy.panel[language]}
                     </div>
                     <div className="mt-1 font-serif text-2xl text-on-dark">
-                      {isPlaying ? "Lecture en cours" : "En pause"}
+                      {isPlaying ? copy.inProgress[language] : copy.ready[language]}
                     </div>
                   </div>
                   <button
@@ -250,7 +276,9 @@ function VideoDetailPage() {
                     value={elapsed}
                     onChange={(event) => setElapsed(Number(event.target.value))}
                     className="w-full cursor-pointer accent-green"
-                    aria-label="Progression de la lecture"
+                    aria-label={
+                      language === "EN" ? "Playback progress" : "Progression de la lecture"
+                    }
                   />
 
                   <div className="flex items-center justify-between text-xs uppercase tracking-[0.22em] text-on-dark-soft">
@@ -276,12 +304,12 @@ function VideoDetailPage() {
                       {isPlaying ? (
                         <>
                           <Pause className="h-4 w-4" />
-                          Pause
+                          {copy.pause[language]}
                         </>
                       ) : (
                         <>
                           <Play className="h-4 w-4" />
-                          Lire
+                          {copy.play[language]}
                         </>
                       )}
                     </button>
@@ -301,7 +329,7 @@ function VideoDetailPage() {
                       className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-on-dark-muted transition-colors hover:border-gold/35 hover:text-on-dark"
                     >
                       <Share2 className="h-4 w-4" />
-                      Partage
+                      {language === "EN" ? "Share" : "Partage"}
                     </button>
                   </div>
 
@@ -314,7 +342,7 @@ function VideoDetailPage() {
                       value={volume}
                       onChange={(event) => setVolume(Number(event.target.value))}
                       className="w-full cursor-pointer accent-green"
-                      aria-label="Volume"
+                      aria-label={language === "EN" ? "Volume" : "Volume"}
                     />
                     <span className="w-12 text-right text-xs uppercase tracking-[0.22em] text-on-dark-soft">
                       {volume}%
@@ -328,27 +356,29 @@ function VideoDetailPage() {
           <div className="flex flex-col gap-6">
             <section className="rounded-[2rem] border border-border bg-surface p-6 md:p-8 shadow-[0_30px_90px_-65px_rgba(13,31,18,0.42)]">
               <div className="inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                <Sparkles className="w-3.5 h-3.5" /> Fiche éditoriale
+                <Sparkles className="w-3.5 h-3.5" /> {copy.editingSheet[language]}
               </div>
               <h2 className="mt-4 font-serif text-4xl leading-tight text-text md:text-5xl">
-                {video.subtitle}
+                {localizedVideo.subtitle}
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-text-secondary">
-                {video.description}
+                {localizedVideo.description}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Format
+                    {copy.format[language]}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{video.cat}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">
+                    {translateVideoCategory(localizedVideo.cat, language)}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Durée
+                    {copy.duration[language]}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{video.duration}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">{localizedVideo.duration}</div>
                 </div>
               </div>
 
@@ -357,13 +387,13 @@ function VideoDetailPage() {
                   to="/videos"
                   className="inline-flex items-center gap-2 rounded-full bg-gradient-green px-5 py-3 text-sm font-medium text-bg shadow-[0_18px_40px_-22px_rgba(29,191,96,0.55)] transition-transform hover:scale-[1.02]"
                 >
-                  <Film className="w-4 h-4" /> Retour à la galerie
+                  <Film className="w-4 h-4" /> {copy.returnGallery[language]}
                 </Link>
                 <a
                   href="#athlete-lie"
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-text-secondary transition-colors hover:border-green/40 hover:text-text"
                 >
-                  <MapPin className="w-4 h-4 text-green" /> Voir l'athlète lié
+                  <MapPin className="w-4 h-4 text-green" /> {copy.relatedAthlete[language]}
                 </a>
               </div>
             </section>
@@ -371,15 +401,17 @@ function VideoDetailPage() {
             <section className="rounded-[2rem] border border-border bg-surface p-6 md:p-7">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="eyebrow mb-2">Partage</div>
-                  <h2 className="font-serif text-2xl text-text">Panneau de diffusion</h2>
+                  <div className="eyebrow mb-2">{language === "EN" ? "Share" : "Partage"}</div>
+                  <h2 className="font-serif text-2xl text-text">
+                    {language === "EN" ? "Broadcast panel" : "Panneau de diffusion"}
+                  </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShareOpen((current) => !current)}
                   className="rounded-full border border-border bg-background px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.24em] text-text-secondary transition-colors hover:border-green/35 hover:text-text"
                 >
-                  {shareOpen ? "Réduire" : "Ouvrir"}
+                  {shareOpen ? (language === "EN" ? "Collapse" : "Réduire") : language === "EN" ? "Open" : "Ouvrir"}
                 </button>
               </div>
 
@@ -389,14 +421,15 @@ function VideoDetailPage() {
                   onClick={handleCopyLink}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-secondary transition-colors hover:border-green/35 hover:text-text"
                 >
-                  <Copy className="h-4 w-4 text-green" /> Copier le lien
+                  <Copy className="h-4 w-4 text-green" />{" "}
+                  {language === "EN" ? "Copy link" : "Copier le lien"}
                 </button>
                 <button
                   type="button"
                   onClick={handleNativeShare}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-green px-4 py-3 text-sm font-medium text-bg shadow-[0_18px_40px_-24px_rgba(29,191,96,0.55)]"
                 >
-                  <Send className="h-4 w-4" /> Partage natif
+                  <Send className="h-4 w-4" /> {language === "EN" ? "Native share" : "Partage natif"}
                 </button>
               </div>
 
@@ -421,33 +454,33 @@ function VideoDetailPage() {
                     onClick={() => openShareTarget("mail")}
                     className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-secondary transition-colors hover:border-green/35 hover:text-text sm:col-span-2"
                   >
-                    E-mail éditorial
+                    {language === "EN" ? "Editorial email" : "E-mail éditorial"}
                   </button>
                 </div>
               )}
             </section>
 
-            {relatedAthlete ? (
+            {localizedRelatedAthlete ? (
               <Link
                 to="/athletes/$id"
-                params={{ id: relatedAthlete.id }}
+                params={{ id: relatedAthlete?.id ?? "" }}
                 className="group flex items-center gap-4 rounded-[2rem] border border-border bg-surface p-5 transition-colors hover:border-green/30"
               >
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border">
                   <img
-                    src={relatedAthlete.image}
-                    alt={relatedAthlete.name}
+                    src={localizedRelatedAthlete.image}
+                    alt={localizedRelatedAthlete.name}
                     className="h-full w-full object-cover"
                   />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                    Athlète lié
+                    {copy.relatedAthlete[language]}
                   </div>
                   <h3 className="mt-1 truncate font-serif text-2xl text-text group-hover:text-green">
-                    {relatedAthlete.name}
+                    {localizedRelatedAthlete.name}
                   </h3>
-                  <p className="mt-1 text-sm text-text-secondary">{relatedAthlete.discipline}</p>
+                  <p className="mt-1 text-sm text-text-secondary">{localizedRelatedAthlete.discipline}</p>
                 </div>
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-bg-tag text-green transition-transform group-hover:scale-105">
                   <ArrowRight className="h-4 w-4" />
@@ -455,7 +488,7 @@ function VideoDetailPage() {
               </Link>
             ) : (
               <div className="rounded-[2rem] border border-dashed border-border bg-surface p-6 text-sm leading-relaxed text-text-secondary">
-                Ce contenu n'est pas encore relié à une fiche athlète précise.
+                {copy.noLink[language]}
               </div>
             )}
           </div>
@@ -464,11 +497,11 @@ function VideoDetailPage() {
         <div className="mt-16 grid gap-8 lg:grid-cols-[1fr_0.9fr]">
           <section className="rounded-[2rem] border border-border bg-surface p-6 md:p-8">
             <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-              <Sparkles className="w-3.5 h-3.5" /> Dans la continuité
+              <Sparkles className="w-3.5 h-3.5" /> {copy.lecture[language]}
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-text">Autres vidéos à explorer</h2>
+            <h2 className="mt-3 font-serif text-3xl text-text">{copy.exploreMore[language]}</h2>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {[prevVideo, nextVideo].map((item) => (
+              {[localizedPrevVideo, localizedNextVideo].map((item) => (
                 <Link
                   key={item.id}
                   to="/videos/$id"
@@ -480,7 +513,7 @@ function VideoDetailPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                      {item.cat}
+                      {translateVideoCategory(item.cat, language)}
                     </div>
                     <h3 className="mt-1 truncate font-serif text-xl text-text group-hover:text-green">
                       {item.title}
@@ -496,11 +529,14 @@ function VideoDetailPage() {
           </section>
 
           <section className="rounded-[2rem] border border-border bg-surface p-6 md:p-8">
-            <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">Lecture</div>
-            <h2 className="mt-3 font-serif text-3xl text-text">Rythme, image, mémoire</h2>
+            <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
+              {copy.lecture[language]}
+            </div>
+            <h2 className="mt-3 font-serif text-3xl text-text">{copy.rhythm[language]}</h2>
             <p className="mt-4 text-sm leading-relaxed text-text-secondary">
-              Le panneau de lecture réagit au tempo du film, tandis que les actions de partage
-              ouvrent une diffusion rapide vers les applications du navigateur ou du téléphone.
+              {language === "EN"
+                ? "The playback panel reacts to the film's tempo, while the share actions open fast distribution to browser or phone apps."
+                : "Le panneau de lecture réagit au tempo du film, tandis que les actions de partage ouvrent une diffusion rapide vers les applications du navigateur ou du téléphone."}
             </p>
           </section>
         </div>

@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import { useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizeVideo, translateVideoCategory } from "@/components/language/siteContent";
 import { VIDEOS } from "@/data/mock";
 
 export const Route = createFileRoute("/videos")({
@@ -19,36 +21,39 @@ export const Route = createFileRoute("/videos")({
   component: VideosPage,
 });
 
-const TABS = ["Tous", "Moments forts", "Coulisses", "Documentaire", "Cérémonies"] as const;
+const VIDEO_TAB_CATEGORIES = [null, "Moments forts", "Coulisses", "Documentaire", "Cérémonies"] as const;
 
 function VideosPage() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Tous");
-  const filtered = tab === "Tous" ? VIDEOS : VIDEOS.filter((v) => v.cat === tab);
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.videos;
+  const [tab, setTab] = useState(0);
+  const localizedVideos = VIDEOS.map((video) => localizeVideo(video, language));
+  const filtered = tab === 0 ? localizedVideos : localizedVideos.filter((v) => v.cat === VIDEO_TAB_CATEGORIES[tab]);
 
   return (
     <PageShell>
       <section className="container-museum pt-16 md:pt-24 pb-10">
-        <div className="eyebrow mb-3">Salle 05 — Vidéo JOJ</div>
+        <div className="eyebrow mb-3">{copy.kicker[language]}</div>
         <h1 className="font-serif text-5xl md:text-7xl text-cream leading-[1.02] max-w-4xl tracking-tight">
-          Les <span className="italic text-orange">images</span>
+          {copy.titleMain[language]} <span className="italic text-orange">{copy.titleAccent[language]}</span>
           <br />
-          qui restent.
+          {copy.intro[language]}
         </h1>
       </section>
 
       <section className="container-museum">
         <div className="flex flex-wrap gap-2 mb-8">
-          {TABS.map((t) => (
+          {copy.tabs.map((t, index) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={index}
+              onClick={() => setTab(index)}
               className={`px-4 py-2 rounded-full text-xs border transition-colors ${
-                tab === t
+                tab === index
                   ? "bg-orange text-background border-orange"
                   : "border-border bg-surface text-muted-foreground hover:text-cream hover:border-gold/40"
               }`}
             >
-              {t}
+              {t[language]}
             </button>
           ))}
         </div>
@@ -92,7 +97,7 @@ function VideosPage() {
                 </div>
               </div>
               <div className="p-5">
-                <div className="text-xs text-orange mb-1.5">{v.cat}</div>
+                <div className="text-xs text-orange mb-1.5">{translateVideoCategory(v.cat, language)}</div>
                 <h3 className="font-serif text-lg text-cream leading-snug group-hover:text-gold-2 transition-colors">
                   {v.title}
                 </h3>

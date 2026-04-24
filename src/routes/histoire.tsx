@@ -2,6 +2,8 @@ import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-ro
 import { ArrowLeft, ArrowRight, Globe2, Sparkles } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizeJojMilestone } from "@/components/language/siteContent";
 import { JOJ_TIMELINE } from "@/data/mock";
 
 export const Route = createFileRoute("/histoire")({
@@ -32,11 +34,17 @@ function HistoirePage() {
   const railRef = useRef<HTMLDivElement>(null);
   const matchRoute = useMatchRoute();
   const detailMatch = matchRoute({ to: "/histoire/$id" });
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.history;
+  const localizedTimeline = useMemo(
+    () => JOJ_TIMELINE.map((event) => localizeJojMilestone(event, language)),
+    [language],
+  );
 
   const stats = useMemo(() => {
-    const firstYear = parseYear(JOJ_TIMELINE[0]?.year);
-    const lastYear = parseYear(JOJ_TIMELINE[JOJ_TIMELINE.length - 1]?.year);
-    const cityCount = new Set(JOJ_TIMELINE.map((item) => item.city)).size;
+    const firstYear = parseYear(localizedTimeline[0]?.year);
+    const lastYear = parseYear(localizedTimeline[localizedTimeline.length - 1]?.year);
+    const cityCount = new Set(localizedTimeline.map((item) => item.city)).size;
 
     return {
       firstYear,
@@ -44,7 +52,7 @@ function HistoirePage() {
       cityCount,
       span: lastYear - firstYear,
     };
-  }, []);
+  }, [localizedTimeline]);
 
   const scrollRail = (direction: -1 | 1) => {
     const rail = railRef.current;
@@ -65,21 +73,20 @@ function HistoirePage() {
       <section className="container-museum pt-16 pb-10 md:pt-24">
         <div className="grid items-end gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <div className="eyebrow mb-3">Salle 02 - Histoire</div>
+            <div className="eyebrow mb-3">{copy.kicker[language]}</div>
             <h1 className="max-w-4xl font-serif text-5xl leading-[1.02] tracking-tight text-cream md:text-7xl">
-              Chronologie des
+              {copy.titleMain[language]}
               <br />
-              <span className="italic text-orange">Jeux Olympiques de la Jeunesse.</span>
+              <span className="italic text-orange">{copy.titleAccent[language]}</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-              Une frise horizontale et futuriste pour traverser les grandes éditions des JOJ, de
-              leur naissance à la première édition africaine à Dakar.
+              {copy.intro[language]}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-2 text-xs uppercase tracking-[0.22em] text-text-secondary">
                 <Globe2 className="h-3.5 w-3.5 text-green" />
-                {JOJ_TIMELINE.length} chapitres
+                {JOJ_TIMELINE.length} {language === "EN" ? "chapters" : "chapitres"}
               </span>
               <span className="rounded-full border border-border bg-surface px-3.5 py-2 text-xs uppercase tracking-[0.22em] text-text-secondary">
                 {stats.firstYear} → {stats.lastYear}
@@ -93,33 +100,34 @@ function HistoirePage() {
           <div className="rounded-3xl border border-border bg-surface p-6 shadow-[0_25px_70px_-50px_rgba(13,31,18,0.35)]">
             <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
               <Sparkles className="h-3.5 w-3.5" />
-              Chronologie interactive
+              {copy.interactive[language]}
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                  Éditions
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
+                    {copy.editions[language]}
+                  </div>
+                  <div className="mt-2 font-serif text-3xl text-text">{JOJ_TIMELINE.length}</div>
                 </div>
-                <div className="mt-2 font-serif text-3xl text-text">{JOJ_TIMELINE.length}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                  Villes
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
+                    {copy.cities[language]}
+                  </div>
+                  <div className="mt-2 font-serif text-3xl text-text">{stats.cityCount}</div>
                 </div>
-                <div className="mt-2 font-serif text-3xl text-text">{stats.cityCount}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-background p-4">
-                <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                  Période
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
+                    {copy.span[language]}
+                  </div>
+                  <div className="mt-2 font-serif text-3xl text-text">
+                    {stats.span} {language === "EN" ? "years" : "ans"}
+                  </div>
                 </div>
-                <div className="mt-2 font-serif text-3xl text-text">{stats.span} ans</div>
               </div>
-            </div>
 
             <p className="mt-5 text-sm leading-relaxed text-text-secondary">
-              Glissez horizontalement ou utilisez les flèches pour remonter les étapes majeures des
-              JOJ, de la première édition à la promesse tenue de Dakar 2026.
+              {copy.hint[language]}
             </p>
           </div>
         </div>
@@ -131,19 +139,19 @@ function HistoirePage() {
             className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm text-text-secondary transition-colors hover:border-green/50 hover:text-text"
           >
             <ArrowLeft className="h-4 w-4" />
-            Précédent
+            {copy.prev[language]}
           </button>
           <button
             type="button"
             onClick={() => scrollRail(1)}
             className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm text-text-secondary transition-colors hover:border-green/50 hover:text-text"
           >
-            Suivant
+            {copy.next[language]}
             <ArrowRight className="h-4 w-4" />
           </button>
           <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-border bg-bg-tag px-3.5 py-2 text-xs uppercase tracking-[0.22em] text-text-secondary">
             <Sparkles className="h-3.5 w-3.5 text-green" />
-            Glisser horizontalement
+            {copy.drag[language]}
           </div>
         </div>
       </section>
@@ -157,7 +165,7 @@ function HistoirePage() {
             ref={railRef}
             className="scrollbar-hide flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pt-2 md:gap-6"
           >
-            {JOJ_TIMELINE.map((event, index) => (
+            {localizedTimeline.map((event, index) => (
               <Link
                 key={event.id}
                 to="/histoire/$id"
@@ -169,7 +177,7 @@ function HistoirePage() {
 
                 <div className="mb-6 flex items-center justify-between">
                   <span className="text-[0.65rem] uppercase tracking-[0.28em] text-green">
-                    Chapitre {String(index + 1).padStart(2, "0")}
+                    {language === "EN" ? "Chapter" : "Chapitre"} {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="rounded-full bg-bg-tag px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-text-secondary">
                     {event.city}
@@ -192,7 +200,7 @@ function HistoirePage() {
 
                 <div className="mt-5 rounded-2xl border border-border bg-bg-tag/70 p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                    Ce que ça change
+                    {language === "EN" ? "What it changes" : "Ce que ça change"}
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-text-secondary">
                     {event.takeaway}
@@ -201,7 +209,7 @@ function HistoirePage() {
 
                 <div className="mt-8 flex items-center justify-between">
                   <span className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                    Ouvrir le chapitre
+                    {language === "EN" ? "Open chapter" : "Ouvrir le chapitre"}
                   </span>
                   <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-bg-tag text-green transition-transform group-hover:scale-105">
                     <ArrowRight className="h-4 w-4" />
@@ -216,10 +224,14 @@ function HistoirePage() {
       <section className="container-museum pb-24">
         <div className="rounded-3xl border border-border bg-surface p-8 md:p-10">
           <p className="font-serif text-2xl italic leading-snug text-text md:text-3xl">
-            "Les JOJ racontent la jeunesse avant les médailles."
+            {language === "EN"
+              ? '"The YOG tell the story of youth before medals."'
+              : '"Les JOJ racontent la jeunesse avant les médailles."'}
           </p>
           <footer className="mt-4 text-sm text-text-secondary">
-            - Esprit fondateur du mouvement olympique de la jeunesse
+            {language === "EN"
+              ? "- Founding spirit of the Youth Olympic movement"
+              : "- Esprit fondateur du mouvement olympique de la jeunesse"}
           </footer>
         </div>
       </section>

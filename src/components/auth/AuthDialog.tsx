@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "../language/LanguageProvider";
+import { COMMON_COPY } from "../language/siteContent";
 import { getAuthRoleOption, ROLE_OPTIONS, type AuthRole, useAuth } from "./AuthProvider";
 
 type AuthDialogProps = {
@@ -18,8 +20,63 @@ type AuthDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+const ROLE_COPY: Record<
+  AuthRole,
+  {
+    fr: { label: string; description: string };
+    en: { label: string; description: string };
+  }
+> = {
+  athlete: {
+    fr: {
+      label: "Athlète",
+      description:
+        "Accès au dossier personnel, aux interviews et aux contenus liés à la carrière.",
+    },
+    en: {
+      label: "Athlete",
+      description:
+        "Access to the personal file, interviews and career-related content.",
+    },
+  },
+  journalist: {
+    fr: {
+      label: "Journaliste",
+      description:
+        "Accès aux archives éditoriales, aux citations et aux ressources média.",
+    },
+    en: {
+      label: "Journalist",
+      description: "Access to editorial archives, quotes and media resources.",
+    },
+  },
+  coach: {
+    fr: {
+      label: "Coach",
+      description: "Accès aux profils, au suivi des performances et à la lecture live.",
+    },
+    en: {
+      label: "Coach",
+      description: "Access to profiles, performance tracking and live viewing.",
+    },
+  },
+  admin: {
+    fr: {
+      label: "Administrateur",
+      description:
+        "Pilotage du musée, modération et gestion des contenus stratégiques.",
+    },
+    en: {
+      label: "Administrator",
+      description: "Museum management, moderation and strategic content control.",
+    },
+  },
+};
+
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const { session, login, logout } = useAuth();
+  const { language } = useLanguage();
+  const copy = COMMON_COPY.auth;
   const [role, setRole] = useState<AuthRole>("athlete");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,12 +94,17 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   }, [open, session]);
 
   const selectedRole = useMemo(() => getAuthRoleOption(role), [role]);
+  const roleCopy = ROLE_COPY[role][language === "EN" ? "en" : "fr"];
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!name.trim() || !email.trim()) {
-      toast.error("Renseigne au moins ton nom et ton email.");
+      toast.error(
+        language === "EN"
+          ? "Enter at least your name and email."
+          : "Renseigne au moins ton nom et ton email.",
+      );
       return;
     }
 
@@ -53,14 +115,18 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       role,
     });
 
-    toast.success(`Connexion établie en tant que ${selectedRole.label.toLowerCase()}.`);
+    toast.success(
+      language === "EN"
+        ? `Signed in as ${roleCopy.label.toLowerCase()}.`
+        : `Connexion établie en tant que ${selectedRole.label.toLowerCase()}.`,
+    );
     setPassword("");
     onOpenChange(false);
   };
 
   const handleLogout = () => {
     logout();
-    toast.success("Déconnexion réussie.");
+    toast.success(language === "EN" ? "Signed out successfully." : "Déconnexion réussie.");
     onOpenChange(false);
   };
 
@@ -73,21 +139,22 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             <div className="relative">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
                 <Sparkles className="h-3.5 w-3.5 text-green" />
-                Connexion multi-rôle
+                {language === "EN" ? "Multi-role sign in" : "Connexion multi-rôle"}
               </div>
 
               <DialogHeader className="mt-5 text-left">
                 <DialogTitle className="font-serif text-4xl text-on-dark md:text-5xl">
-                  Accès au musée
+                  {copy.title[language]}
                 </DialogTitle>
                 <DialogDescription className="max-w-md text-on-dark-muted">
-                  Sélectionne ton rôle pour ouvrir l'espace qui correspond à ton profil.
+                  {copy.description[language]}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="mt-8 space-y-3">
                 {ROLE_OPTIONS.map((option) => {
                   const active = role === option.value;
+                  const translated = ROLE_COPY[option.value][language === "EN" ? "en" : "fr"];
 
                   return (
                     <button
@@ -101,14 +168,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`font-medium ${option.accentClass}`}>{option.label}</span>
+                        <span className={`font-medium ${option.accentClass}`}>{translated.label}</span>
                         <span className="text-[0.62rem] uppercase tracking-[0.22em] text-on-dark-soft">
                           {option.recommendedPath}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm leading-relaxed">{option.description}</p>
+                      <p className="mt-2 text-sm leading-relaxed">{translated.description}</p>
                       <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-green">
-                        Ouvrir l'espace <ArrowRight className="h-3.5 w-3.5" />
+                        {language === "EN" ? "Open space" : "Ouvrir l'espace"}{" "}
+                        <ArrowRight className="h-3.5 w-3.5" />
                       </div>
                     </button>
                   );
@@ -121,11 +189,13 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             {session && (
               <div className="rounded-2xl border border-green/20 bg-bg-tag p-4">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                  Session active
+                  {language === "EN" ? "Active session" : "Session active"}
                 </div>
                 <div className="mt-2 font-serif text-2xl text-text">{session.name}</div>
                 <p className="mt-1 text-sm text-text-secondary">
-                  {session.roleLabel} · {session.organization}
+                  {language === "EN"
+                    ? `${ROLE_COPY[session.role][language === "EN" ? "en" : "fr"].label} · ${session.organization}`
+                    : `${session.roleLabel} · ${session.organization}`}
                 </p>
                 <p className="mt-2 text-sm text-text-secondary">{session.email}</p>
 
@@ -136,7 +206,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                     onClick={() => onOpenChange(false)}
                   >
                     <Link to={session.preferredPath}>
-                      Aller à mon espace <ArrowRight className="h-4 w-4" />
+                      {language === "EN" ? "Go to my space" : "Aller à mon espace"}{" "}
+                      <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
                   <Button
@@ -146,7 +217,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                     onClick={handleLogout}
                   >
                     <LogOut className="h-4 w-4" />
-                    Déconnexion
+                    {copy.logout[language]}
                   </Button>
                 </div>
               </div>
@@ -154,19 +225,19 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
             <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
               <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                <Lock className="h-3.5 w-3.5" /> Formulaire
+                <Lock className="h-3.5 w-3.5" /> {language === "EN" ? "Form" : "Formulaire"}
               </div>
 
               <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-xs uppercase tracking-[0.2em] text-text-muted">
-                      Nom complet
+                      {language === "EN" ? "Full name" : "Nom complet"}
                     </label>
                     <Input
                       value={name}
                       onChange={(event) => setName(event.target.value)}
-                      placeholder="Ton nom"
+                      placeholder={language === "EN" ? "Your name" : "Ton nom"}
                       className="h-11 border-border bg-background text-text placeholder:text-text-muted/70"
                       autoComplete="name"
                     />
@@ -174,13 +245,13 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
                   <div className="space-y-2">
                     <label className="text-xs uppercase tracking-[0.2em] text-text-muted">
-                      Adresse email
+                      {language === "EN" ? "Email address" : "Adresse email"}
                     </label>
                     <Input
                       type="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      placeholder="toi@exemple.com"
+                      placeholder={language === "EN" ? "you@example.com" : "toi@exemple.com"}
                       className="h-11 border-border bg-background text-text placeholder:text-text-muted/70"
                       autoComplete="email"
                     />
@@ -188,12 +259,16 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-xs uppercase tracking-[0.2em] text-text-muted">
-                      Organisation / équipe
+                      {language === "EN" ? "Organization / team" : "Organisation / équipe"}
                     </label>
                     <Input
                       value={organization}
                       onChange={(event) => setOrganization(event.target.value)}
-                      placeholder="Ex: Fédération, média, staff, club"
+                      placeholder={
+                        language === "EN"
+                          ? "Ex: federation, media, staff, club"
+                          : "Ex: Fédération, média, staff, club"
+                      }
                       className="h-11 border-border bg-background text-text placeholder:text-text-muted/70"
                       autoComplete="organization"
                     />
@@ -201,7 +276,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-xs uppercase tracking-[0.2em] text-text-muted">
-                      Mot de passe
+                      {language === "EN" ? "Password" : "Mot de passe"}
                     </label>
                     <Input
                       type="password"
@@ -219,22 +294,29 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   className="h-11 w-full rounded-full bg-gradient-green text-bg shadow-[0_18px_40px_-24px_rgba(29,191,96,0.65)]"
                 >
                   {session
-                    ? "Mettre à jour la session"
-                    : `Se connecter en ${selectedRole.label.toLowerCase()}`}
+                    ? language === "EN"
+                      ? "Update session"
+                      : "Mettre à jour la session"
+                    : language === "EN"
+                      ? `Sign in as ${roleCopy.label.toLowerCase()}`
+                      : `Se connecter en ${selectedRole.label.toLowerCase()}`}
                 </Button>
               </form>
             </div>
 
             <div className="mt-5 rounded-2xl border border-border bg-background p-4">
               <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                Rôle sélectionné
+                {language === "EN" ? "Selected role" : "Rôle sélectionné"}
               </div>
-              <div className="mt-2 font-serif text-2xl text-text">{selectedRole.label}</div>
+              <div className="mt-2 font-serif text-2xl text-text">
+                {language === "EN" ? roleCopy.label : selectedRole.label}
+              </div>
               <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                {selectedRole.description}
+                {language === "EN" ? roleCopy.description : selectedRole.description}
               </p>
               <div className="mt-3 text-xs uppercase tracking-[0.22em] text-green">
-                Accès recommandé: {selectedRole.recommendedPath}
+                {language === "EN" ? "Recommended access" : "Accès recommandé"}:{" "}
+                {selectedRole.recommendedPath}
               </div>
             </div>
           </div>

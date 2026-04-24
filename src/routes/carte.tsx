@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MapPin } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, translateCountry, translateDiscipline } from "@/components/language/siteContent";
 import { ATHLETES } from "@/data/mock";
 import africaMap from "@/assets/africa-map.jpg";
 
@@ -21,6 +23,8 @@ export const Route = createFileRoute("/carte")({
 });
 
 function CartePage() {
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.carte;
   const countries = useMemo(() => {
     const map = new Map<
       string,
@@ -47,15 +51,15 @@ function CartePage() {
     <PageShell>
       <section className="container-museum pt-16 md:pt-24 pb-10">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <div className="eyebrow">Salle 03 — Carte Live</div>
+          <div className="eyebrow">{copy.kicker[language]}</div>
           <span className="inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-widest text-cream px-2.5 py-1 rounded-full bg-destructive/15 border border-destructive/40">
-            <span className="live-dot"></span> EN DIRECT
+            <span className="live-dot"></span> {copy.live[language]}
           </span>
         </div>
         <h1 className="font-serif text-5xl md:text-7xl text-cream leading-[1.02] max-w-4xl tracking-tight">
-          55 nations,
+          {copy.titleMain[language]}
           <br />
-          <span className="italic text-orange">une seule vibration.</span>
+          <span className="italic text-orange">{copy.titleAccent[language]}</span>
         </h1>
       </section>
 
@@ -63,20 +67,26 @@ function CartePage() {
         <div className="bg-surface border border-border rounded-xl min-h-[520px] relative overflow-hidden flex items-center justify-center p-6">
           <img
             src={africaMap}
-            alt="Carte de l'Afrique"
+            alt={language === "EN" ? "Map of Africa" : "Carte de l'Afrique"}
             className="absolute inset-0 w-full h-full object-contain opacity-40"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
           {sel && (
             <div className="relative z-10 text-center">
               <div className="text-5xl mb-3">{sel.flag}</div>
-              <div className="font-serif text-3xl text-cream">{sel.country}</div>
+              <div className="font-serif text-3xl text-cream">
+                {translateCountry(sel.country, language)}
+              </div>
               <div className="text-orange text-sm mt-2">
-                {sel.count} athlète{sel.count > 1 ? "s" : ""} · {sel.disciplines.size} discipline
-                {sel.disciplines.size > 1 ? "s" : ""}
+                {sel.count}{" "}
+                {sel.count > 1 ? copy.countPlural[language] : copy.countSingular[language]} ·{" "}
+                {sel.disciplines.size} {copy.disciplines[language]}
               </div>
               <div className="mt-4 text-xs text-muted-foreground max-w-xs">
-                Disciplines : {Array.from(sel.disciplines).join(" · ")}
+                {language === "EN" ? "Events" : "Disciplines"} :{" "}
+                {Array.from(sel.disciplines)
+                  .map((discipline) => translateDiscipline(discipline, language))
+                  .join(" · ")}
               </div>
             </div>
           )}
@@ -95,7 +105,7 @@ function CartePage() {
                   }`}
                 >
                   <span className="text-xl">{c.flag}</span>
-                  <span className="flex-1 font-medium">{c.country}</span>
+                  <span className="flex-1 font-medium">{translateCountry(c.country, language)}</span>
                   <span className="text-xs text-orange flex items-center gap-1">
                     <MapPin className="w-3 h-3" /> {c.count}
                   </span>

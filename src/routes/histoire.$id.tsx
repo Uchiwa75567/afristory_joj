@@ -2,6 +2,8 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Globe2, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizeJojMilestone } from "@/components/language/siteContent";
 import { JOJ_TIMELINE, type JojMilestone } from "@/data/mock";
 
 export const Route = createFileRoute("/histoire/$id")({
@@ -20,30 +22,47 @@ export const Route = createFileRoute("/histoire/$id")({
         ]
       : [],
   }),
-  notFoundComponent: () => (
-    <PageShell>
-      <div className="container-museum py-32 text-center">
-        <h1 className="font-serif text-5xl text-cream">Chapitre introuvable</h1>
-        <Link to="/histoire" className="mt-6 inline-block text-orange">
-          ← Retour à la chronologie
-        </Link>
-      </div>
-    </PageShell>
-  ),
+  notFoundComponent: HistoireNotFound,
   component: HistoireDetailPage,
 });
 
+function HistoireNotFound() {
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.historyDetail;
+
+  return (
+    <PageShell>
+      <div className="container-museum py-32 text-center">
+        <h1 className="font-serif text-5xl text-cream">
+          {language === "EN" ? "Chapter not found" : "Chapitre introuvable"}
+        </h1>
+        <Link to="/histoire" className="mt-6 inline-block text-orange">
+          ← {copy.back[language]}
+        </Link>
+      </div>
+    </PageShell>
+  );
+}
+
 function HistoireDetailPage() {
   const milestone = Route.useLoaderData();
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.historyDetail;
+  const localizedMilestone = useMemo(
+    () => localizeJojMilestone(milestone, language),
+    [language, milestone],
+  );
 
   const ordered = useMemo(() => JOJ_TIMELINE, []);
   const index = ordered.findIndex((item) => item.id === milestone.id);
   const prev = ordered[(index - 1 + ordered.length) % ordered.length];
   const next = ordered[(index + 1) % ordered.length];
+  const prevLocalized = useMemo(() => localizeJojMilestone(prev, language), [language, prev]);
+  const nextLocalized = useMemo(() => localizeJojMilestone(next, language), [language, next]);
 
   const detailParagraphs = useMemo(
-    () => [milestone.description, milestone.detail, milestone.takeaway],
-    [milestone],
+    () => [localizedMilestone.description, localizedMilestone.detail, localizedMilestone.takeaway],
+    [localizedMilestone],
   );
 
   return (
@@ -53,7 +72,7 @@ function HistoireDetailPage() {
           to="/histoire"
           className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text"
         >
-          <ArrowLeft className="h-4 w-4" /> Retour à la chronologie
+          <ArrowLeft className="h-4 w-4" /> {copy.back[language]}
         </Link>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.08fr_0.92fr]">
@@ -64,34 +83,34 @@ function HistoireDetailPage() {
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5 text-green" />
-                  Chapitre {String(index + 1).padStart(2, "0")}
+                  {language === "EN" ? "Chapter" : "Chapitre"} {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-green/25 bg-green/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-green backdrop-blur-md">
                   <Globe2 className="h-3.5 w-3.5" />
-                  {milestone.city}
+                  {localizedMilestone.city}
                 </span>
               </div>
 
               <div className="max-w-3xl">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
-                  Chronologie JOJ
+                  {language === "EN" ? "YOG timeline" : "Chronologie JOJ"}
                 </div>
                 <h1 className="mt-4 font-serif text-5xl leading-[0.95] text-on-dark md:text-7xl">
-                  {milestone.year}
+                  {localizedMilestone.year}
                   <br />
-                  <span className="italic text-gold">{milestone.title}</span>
+                  <span className="italic text-gold">{localizedMilestone.title}</span>
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-relaxed text-on-dark-muted">
-                  {milestone.description}
+                  {localizedMilestone.description}
                 </p>
               </div>
 
               <div className="rounded-[1.75rem] border border-white/10 bg-dark-surface/88 p-5 backdrop-blur-xl">
                 <div className="text-[0.65rem] uppercase tracking-[0.24em] text-on-dark-soft">
-                  Ce chapitre change la suite
+                  {copy.related[language]}
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-on-dark-muted">
-                  {milestone.takeaway}
+                  {localizedMilestone.takeaway}
                 </p>
               </div>
             </div>
@@ -100,45 +119,46 @@ function HistoireDetailPage() {
           <div className="space-y-5">
             <div className="rounded-[2rem] border border-border bg-surface p-6 shadow-[0_30px_90px_-65px_rgba(13,31,18,0.42)] md:p-8">
               <div className="inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                <Sparkles className="h-3.5 w-3.5" /> Fiche du chapitre
+                <Sparkles className="h-3.5 w-3.5" /> {copy.fiche[language]}
               </div>
 
               <h2 className="mt-4 font-serif text-4xl leading-tight text-text md:text-5xl">
-                {milestone.city}
+                {localizedMilestone.city}
               </h2>
               <p className="mt-4 max-w-2xl text-lg leading-relaxed text-text-secondary">
-                {milestone.takeaway}
+                {localizedMilestone.takeaway}
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Année
+                    {language === "EN" ? "Year" : "Année"}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{milestone.year}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">{localizedMilestone.year}</div>
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Ville
+                    {language === "EN" ? "City" : "Ville"}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{milestone.city}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">{localizedMilestone.city}</div>
                 </div>
                 <div className="rounded-2xl border border-border bg-background p-4 sm:col-span-2">
                   <div className="text-[0.65rem] uppercase tracking-[0.2em] text-text-muted">
-                    Chapitre
+                    {language === "EN" ? "Chapter" : "Chapitre"}
                   </div>
-                  <div className="mt-2 font-serif text-2xl text-text">{milestone.title}</div>
+                  <div className="mt-2 font-serif text-2xl text-text">{localizedMilestone.title}</div>
                 </div>
               </div>
             </div>
 
             <div className="rounded-[2rem] border border-border bg-bg-tag/80 p-6 md:p-7">
               <div className="text-[0.65rem] uppercase tracking-[0.24em] text-green">
-                Résumé éditorial
+                {copy.editorial[language]}
               </div>
               <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                Les JOJ prennent ici une forme lisible et continue, de leur naissance à leur
-                première édition africaine. Chaque chapitre annonce la suivante.
+                {language === "EN"
+                  ? "The YOG take on a clear and continuous form here, from their birth to their first African edition. Each chapter points to the next."
+                  : "Les JOJ prennent ici une forme lisible et continue, de leur naissance à leur première édition africaine. Chaque chapitre annonce la suivante."}
               </p>
             </div>
           </div>
@@ -147,9 +167,11 @@ function HistoireDetailPage() {
         <div className="mt-16 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="rounded-[2rem] border border-border bg-surface p-6 md:p-8 shadow-[0_30px_90px_-65px_rgba(13,31,18,0.4)]">
             <div className="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.24em] text-green">
-              <Sparkles className="h-3.5 w-3.5" /> Chapitre détaillé
+              <Sparkles className="h-3.5 w-3.5" /> {copy.detailed[language]}
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-text">Le récit de ce moment</h2>
+            <h2 className="mt-3 font-serif text-3xl text-text">
+              {language === "EN" ? "The story of this moment" : "Le récit de ce moment"}
+            </h2>
 
             <div className="mt-6 space-y-5">
               {detailParagraphs.map((paragraph, paragraphIndex) => (
@@ -165,16 +187,18 @@ function HistoireDetailPage() {
 
           <aside className="space-y-6">
             <div className="rounded-[2rem] border border-border bg-surface p-6 md:p-7">
-              <h3 className="font-serif text-2xl text-text">Repères visuels</h3>
+              <h3 className="font-serif text-2xl text-text">
+                {language === "EN" ? "Visual markers" : "Repères visuels"}
+              </h3>
               <ul className="mt-5 space-y-2.5">
                 <li className="rounded-2xl border border-border bg-background p-4 text-sm text-text-secondary">
-                  {milestone.description}
+                  {localizedMilestone.description}
                 </li>
                 <li className="rounded-2xl border border-border bg-background p-4 text-sm text-text-secondary">
-                  {milestone.detail}
+                  {localizedMilestone.detail}
                 </li>
                 <li className="rounded-2xl border border-border bg-background p-4 text-sm text-text-secondary">
-                  {milestone.takeaway}
+                  {localizedMilestone.takeaway}
                 </li>
               </ul>
             </div>
@@ -188,10 +212,10 @@ function HistoireDetailPage() {
                 <div className="min-w-0 flex-1 md:w-full">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
                     <ArrowLeft className="mr-1 inline-block h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
-                    Précédent
+                    {copy.prev[language]}
                   </div>
                   <div className="truncate font-serif text-lg text-text group-hover:text-green">
-                    {prev.year} - {prev.city}
+                    {prevLocalized.year} - {prevLocalized.city}
                   </div>
                 </div>
               </Link>
@@ -203,11 +227,11 @@ function HistoireDetailPage() {
               >
                 <div className="min-w-0 flex-1 md:w-full">
                   <div className="text-[0.65rem] uppercase tracking-[0.24em] text-text-muted">
-                    Suivant
+                    {copy.next[language]}
                     <ArrowRight className="ml-1 inline-block h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </div>
                   <div className="truncate font-serif text-lg text-text group-hover:text-green">
-                    {next.year} - {next.city}
+                    {nextLocalized.year} - {nextLocalized.city}
                   </div>
                 </div>
               </Link>

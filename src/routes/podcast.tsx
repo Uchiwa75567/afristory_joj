@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Play, Pause, SkipBack, SkipForward, Volume2, Share2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageShell } from "@/components/PageShell";
+import { useLanguage } from "@/components/language/LanguageProvider";
+import { PAGE_COPY, localizePodcast, translatePodcastCategory } from "@/components/language/siteContent";
 import { PODCASTS, type PodcastEpisode } from "@/data/mock";
 
 export const Route = createFileRoute("/podcast")({
@@ -19,29 +21,73 @@ export const Route = createFileRoute("/podcast")({
   component: PodcastPage,
 });
 
-const CATEGORIES = ["Tous", "Interview", "Famille", "Entraîneur", "Histoire"] as const;
+type PodcastFilter = "all" | "interview" | "family" | "coach" | "history";
+
+function getPodcastFilter(category: PodcastEpisode["category"]) {
+  switch (category) {
+    case "Interview":
+      return "interview";
+    case "Famille":
+      return "family";
+    case "Entraîneur":
+      return "coach";
+    case "Histoire":
+      return "history";
+    default:
+      return "all";
+  }
+}
 
 function PodcastPage() {
-  const [cat, setCat] = useState<(typeof CATEGORIES)[number]>("Tous");
-  const [current, setCurrent] = useState<PodcastEpisode>(PODCASTS[0]);
+  const { language } = useLanguage();
+  const copy = PAGE_COPY.podcast;
+  const [cat, setCat] = useState<PodcastFilter>("all");
+  const [currentId, setCurrentId] = useState<string>(PODCASTS[0].id);
   const [playing, setPlaying] = useState(false);
+  const matchRoute = useMatchRoute();
+  const detailMatch = matchRoute({ to: "/podcast/$id" });
+
+  const localizedPodcasts = useMemo(
+    () => PODCASTS.map((episode) => localizePodcast(episode, language)),
+    [language],
+  );
+
+  const current = useMemo(
+    () => localizedPodcasts.find((episode) => episode.id === currentId) ?? localizedPodcasts[0],
+    [currentId, localizedPodcasts],
+  );
 
   const filtered = useMemo(
-    () => (cat === "Tous" ? PODCASTS : PODCASTS.filter((p) => p.category === cat)),
-    [cat],
+    () =>
+      cat === "all"
+        ? localizedPodcasts
+        : localizedPodcasts.filter((p) => getPodcastFilter(p.category) === cat),
+    [cat, localizedPodcasts],
   );
+
+  const filterLabels = [
+    { value: "all" as const, label: copy.all[language] },
+    { value: "interview" as const, label: language === "EN" ? "Interview" : "Interview" },
+    { value: "family" as const, label: language === "EN" ? "Family" : "Famille" },
+    { value: "coach" as const, label: language === "EN" ? "Coach" : "Entraîneur" },
+    { value: "history" as const, label: language === "EN" ? "History" : "Histoire" },
+  ];
+
+  if (detailMatch) {
+    return <Outlet />;
+  }
 
   return (
     <PageShell>
       <section className="container-museum pt-16 md:pt-24 pb-10">
-        <div className="eyebrow mb-3">Salle 04 — Studio Podcast</div>
+        <div className="eyebrow mb-3">{copy.kicker[language]}</div>
         <h1 className="font-serif text-5xl md:text-7xl text-cream leading-[1.02] max-w-4xl tracking-tight">
-          Écouter. Ressentir.
+          {copy.titleMain[language]}
           <br />
-          <span className="italic text-orange">Vivre</span> l'athlétisme.
+          <span className="italic text-orange">{copy.titleAccent[language]}</span> {language === "EN" ? "athletics." : "l'athlétisme."}
         </h1>
         <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-          Des voix qui racontent l'effort, le sacrifice et la fierté.
+          {copy.intro[language]}
         </p>
       </section>
 
@@ -63,10 +109,10 @@ function PodcastPage() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-[0.65rem] uppercase tracking-widest text-orange flex items-center gap-1.5">
-                    <span className="live-dot w-2 h-2"></span> À l'écoute
+                    <span className="live-dot w-2 h-2"></span> {copy.nowListening[language]}
                   </span>
                   <span className="text-[0.65rem] uppercase tracking-widest text-muted-foreground">
-                    {current.category}
+                    {translatePodcastCategory(current.category, language)}
                   </span>
                 </div>
                 <h2 className="font-serif text-3xl md:text-4xl text-cream leading-tight">
@@ -123,17 +169,17 @@ function PodcastPage() {
       {/* CATEGORY FILTERS */}
       <section className="container-museum py-12">
         <div className="flex flex-wrap gap-2 mb-8">
-          {CATEGORIES.map((c) => (
+          {filterLabels.map((c) => (
             <button
-              key={c}
-              onClick={() => setCat(c)}
+              key={c.value}
+              onClick={() => setCat(c.value)}
               className={`px-4 py-2 rounded-full text-xs border transition-colors ${
-                cat === c
+                cat === c.value
                   ? "bg-orange text-background border-orange"
                   : "border-border bg-surface text-muted-foreground hover:text-cream hover:border-gold/40"
               }`}
             >
-              {c}
+              {c.label}
             </button>
           ))}
         </div>
@@ -143,7 +189,7 @@ function PodcastPage() {
             <button
               key={ep.id}
               onClick={() => {
-                setCurrent(ep);
+                setCurrentId(ep.id);
                 setPlaying(true);
               }}
               className="photo-card group text-left bg-surface animate-fade-in-up"
@@ -166,7 +212,7 @@ function PodcastPage() {
               </div>
               <div className="p-5">
                 <div className="text-xs text-muted-foreground mb-1.5">
-                  {ep.category} · {ep.duration} · {ep.date}
+                  {translatePodcastCategory(ep.category, language)} · {ep.duration} · {ep.date}
                 </div>
                 <h3 className="font-serif text-xl text-cream leading-snug group-hover:text-gold-2 transition-colors">
                   {ep.title}
