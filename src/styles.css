@@ -311,10 +311,13 @@
   }
 
   .photo-card {
+    display: block;
+    width: 100%;
     position: relative;
     overflow: hidden;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
+    cursor: pointer;
     transition: border-color 0.4s ease;
   }
   .photo-card:hover {

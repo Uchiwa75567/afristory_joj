@@ -3,6 +3,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import appCss from "../styles.css?url";
 import logoMark from "../assets/brand/afristory-logo.png";
 import { BrandLogo } from "../components/BrandLogo";
+import { AuthProvider } from "../components/auth/AuthProvider";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -86,5 +87,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
 }

@@ -123,7 +123,8 @@ function AthletesPage() {
                 key={a.id}
                 to="/athletes/$id"
                 params={{ id: a.id }}
-                className="photo-card group animate-fade-in-up"
+                className="photo-card group block h-full cursor-pointer animate-fade-in-up"
+                title={`Ouvrir le dossier de ${a.name}`}
                 style={{ animationDelay: `${Math.min(i, 8) * 0.04}s` }}
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
